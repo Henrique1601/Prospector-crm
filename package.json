@@ -1,0 +1,17 @@
+{
+  "name": "prospector-crm",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev -w @prospector/api\" \"npm:dev -w @prospector/web\"",
+    "build": "npm run build -w @prospector/api && npm run build -w @prospector/web",
+    "test": "npm run test -w @prospector/api && npm run test -w @prospector/web",
+    "typecheck": "npm run typecheck -w @prospector/api && npm run typecheck -w @prospector/web",
+    "brain:sync": "node scripts/sync-obsidian.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

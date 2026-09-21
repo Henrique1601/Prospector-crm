@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    {"id":"vision","type":"file","file":"Product Vision.md","x":0,"y":0,"width":360,"height":220,"color":"4"},
+    {"id":"ops","type":"file","file":"Operating System.md","x":480,"y":0,"width":360,"height":220,"color":"5"},
+    {"id":"snapshot","type":"file","file":"CRM Snapshot.md","x":960,"y":0,"width":360,"height":220,"color":"3"},
+    {"id":"sales","type":"file","file":"Sales Playbook.md","x":0,"y":340,"width":360,"height":220,"color":"2"},
+    {"id":"discovery","type":"file","file":"Customer Discovery.md","x":480,"y":340,"width":360,"height":220,"color":"6"},
+    {"id":"roadmap","type":"file","file":"Roadmap.md","x":960,"y":340,"width":360,"height":220,"color":"1"},
+    {"id":"architecture","type":"file","file":"Architecture Map.md","x":0,"y":680,"width":360,"height":220},
+    {"id":"guardrails","type":"file","file":"Agent And AI Guardrails.md","x":480,"y":680,"width":360,"height":220,"color":"2"},
+    {"id":"notion","type":"file","file":"Notion Integration Plan.md","x":960,"y":680,"width":360,"height":220,"color":"5"}
+  ],
+  "edges": [
+    {"id":"e1","fromNode":"vision","fromSide":"right","toNode":"ops","toSide":"left"},
+    {"id":"e2","fromNode":"ops","fromSide":"right","toNode":"snapshot","toSide":"left"},
+    {"id":"e3","fromNode":"vision","fromSide":"bottom","toNode":"sales","toSide":"top"},
+    {"id":"e4","fromNode":"sales","fromSide":"right","toNode":"discovery","toSide":"left","label":"gera aprendizado"},
+    {"id":"e5","fromNode":"discovery","fromSide":"right","toNode":"roadmap","toSide":"left","label":"prioriza"},
+    {"id":"e6","fromNode":"architecture","fromSide":"right","toNode":"guardrails","toSide":"left"},
+    {"id":"e7","fromNode":"guardrails","fromSide":"right","toNode":"notion","toSide":"left","label":"limita integração"},
+    {"id":"e8","fromNode":"snapshot","fromSide":"bottom","toNode":"roadmap","toSide":"top"}
+  ]
+}
