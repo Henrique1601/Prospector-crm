@@ -28,4 +28,16 @@ Os seguintes agent skills estão instalados no ambiente e devem ser usados estra
 6. `agent-browser` / `chrome-devtools`: Auditoria visual e técnica de sites dos leads para demonstrar melhorias com métricas reais.
 7. `pipeline-review` / `build-dashboard`: Auditoria e visualização da saúde do funil de vendas.
 
+8. `ai-memory`: Memória persistente de longo prazo em disco (workspace `default`, project `prospector-crm`). Permite consultar decisões arquiteturais, regras de perfil e histórico através de `memory_query`, `memory_status` e `memory_write_page`.
+
 Para documentação completa dos skills, consulte [[Second Brain/Agent Skills and Capabilities]].
+
+<!-- ai-memory:start -->
+## Long-term memory (ai-memory)
+
+This project uses [ai-memory](https://github.com/akitaonrails/ai-memory) for cross-session continuity.
+
+- **Configuração do Projeto:** Declarado no arquivo `.ai-memory.toml` (`workspace = "default"`, `project = "prospector-crm"`).
+- **Consultas e Recuperação:** Use `memory_query` para recuperar decisões e lições passadas com `project: "prospector-crm"`, `workspace: "default"`.
+- **Anotações Permanentes:** Use `memory_write_page` para persistir regras, lições e procedimentos duradouros do Prospector CRM.
+<!-- ai-memory:end -->

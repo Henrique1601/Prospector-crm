@@ -151,7 +151,9 @@ flowchart TD
   ```
 
 #### `obsidian-vault` & `ai-memory`
-- **O que faz:** Guarda o histórico de negociações, objeções vencidas, notas de clientes e playbooks estratégicos na pasta `Second Brain/`.
+- **O que faz:**
+  - `obsidian-vault`: Mantém o conhecimento legível por humanos na pasta `Second Brain/` com wikilinks.
+  - `ai-memory`: Servidor MCP nativo de memória persistente de longo prazo em disco (SQLite + FTS5 + vetor). Configurado para o projeto `prospector-crm` (`workspace: "default"`), permitindo consultas rápidas (`memory_query`), registro de regras duradouras (`memory_write_page`) e resumos estruturados (`memory_briefing`).
 
 ---
 
