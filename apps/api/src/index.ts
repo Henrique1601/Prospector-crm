@@ -14,7 +14,7 @@ app.get("/api/health", (_req, res) => res.json({
   ok: true,
   ai: Boolean(process.env.AISA_API_KEY),
   mode: process.env.AISA_API_KEY ? "aisa" : "local",
-  storage: process.env.VERCEL ? "temporary" : "local-file"
+  storage: process.env.DATABASE_URL ? "neon" : process.env.VERCEL ? "temporary" : "local-file"
 }));
 
 app.get("/api/leads", async (req, res) => {
