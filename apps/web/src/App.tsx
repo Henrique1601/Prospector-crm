@@ -200,14 +200,16 @@ function LeadDrawer({
   };
 
   return (
-    <aside className="drawer">
-      <div className="drawer-header">
-        <div>
-          <span className="eyebrow">
-            {lead.segment} · {lead.city}/{lead.state}
-          </span>
-          <h2>{lead.name}</h2>
-        </div>
+    <div className="drawer-wrap">
+      <button className="drawer-scrim" onClick={onClose} aria-label="Fechar ficha do lead" />
+      <aside className="drawer">
+        <div className="drawer-header">
+          <div>
+            <span className="eyebrow">
+              {lead.segment} · {lead.city}/{lead.state}
+            </span>
+            <h2>{lead.name}</h2>
+          </div>
         <div className="drawer-header-actions">
           <button
             type="button"
@@ -629,6 +631,7 @@ function LeadDrawer({
         </section>
       </div>
     </aside>
+  </div>
   );
 }
 
@@ -1085,122 +1088,6 @@ export function App() {
           />
         </section>
 
-        <section className="command">
-          <div className="command-copy">
-            <span className="eyebrow">Próxima melhor ação</span>
-            <h2>
-              {leads.some((lead) => lead.stage === "new")
-                ? `${leads.filter((lead) => lead.stage === "new").length} empresas aguardam análise`
-                : "Fila de análise concluída"}
-            </h2>
-            <p>
-              O agente organiza os fatos e sugere uma abordagem. Você revisa antes de qualquer contato.
-            </p>
-            <button
-              className="signal-button"
-              onClick={analyzeNext}
-              disabled={!leads.some((lead) => lead.stage === "new")}
-            >
-              <Sparkles />
-              Analisar próximo lead <ChevronRight />
-            </button>
-          </div>
-          <div className="radar" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <i />
-          </div>
-          <div className="attention">
-            <span>Em foco agora</span>
-            {leads
-              .filter((lead) => lead.score > 0)
-              .slice(0, 3)
-              .map((lead) => (
-                <button key={lead.id} onClick={() => setSelected(lead)}>
-                  <Score value={lead.score} />
-                  <div>
-                    <strong>{lead.name}</strong>
-                    <small>{lead.nextAction}</small>
-                  </div>
-                  <ChevronRight />
-                </button>
-              ))}
-          </div>
-        </section>
-
-        <section className="followups" id="followups">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Agenda comercial</span>
-              <h2>Próximos follow-ups</h2>
-            </div>
-            <span>
-              {followUps.length} agendado{followUps.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="followup-list">
-            {followUps.length ? (
-              followUps.slice(0, 4).map((lead) => (
-                <button key={lead.id} onClick={() => setSelected(lead)}>
-                  <span className="followup-date">
-                    <strong>
-                      {new Date(lead.nextFollowUp!).toLocaleDateString("pt-BR", { day: "2-digit" })}
-                    </strong>
-                    <small>
-                      {new Date(lead.nextFollowUp!)
-                        .toLocaleDateString("pt-BR", { month: "short" })
-                        .replace(".", "")}
-                    </small>
-                  </span>
-                  <span>
-                    <strong>{lead.name}</strong>
-                    <small>{lead.nextAction || "Retomar contato"}</small>
-                  </span>
-                  <ChevronRight />
-                </button>
-              ))
-            ) : (
-              <div className="followup-empty">
-                <Check />
-                <span>
-                  <strong>Agenda em dia</strong>
-                  <small>Defina a próxima data de contato na ficha de um lead.</small>
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="funnel" id="analytics">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Funil em movimento</span>
-              <h2>Da descoberta ao contrato</h2>
-            </div>
-            <div className="funnel-heading-actions">
-              <span>{dashboard?.contacted ?? 0} contatos iniciados</span>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => setAnalyticsModalOpen(true)}
-              >
-                <BarChart3 size={14} />
-                <span>Ver Analytics de Conversão</span>
-              </button>
-            </div>
-          </div>
-          <div className="funnel-row">
-            {mainStages.map((stage, index) => (
-              <button key={stage} onClick={() => setFilter(stage)}>
-                <small>{String(index + 1).padStart(2, "0")}</small>
-                <strong>{dashboard?.stages?.[stage] ?? 0}</strong>
-                <span>{stageLabels[stage]}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
         <section className="pipeline" id="pipeline">
           <div className="section-heading">
             <div>
@@ -1389,6 +1276,122 @@ export function App() {
                 <p>Ajuste a busca ou volte a exibir todos os estágios.</p>
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="command">
+          <div className="command-copy">
+            <span className="eyebrow">Próxima melhor ação</span>
+            <h2>
+              {leads.some((lead) => lead.stage === "new")
+                ? `${leads.filter((lead) => lead.stage === "new").length} empresas aguardam análise`
+                : "Fila de análise concluída"}
+            </h2>
+            <p>
+              O agente organiza os fatos e sugere uma abordagem. Você revisa antes de qualquer contato.
+            </p>
+            <button
+              className="signal-button"
+              onClick={analyzeNext}
+              disabled={!leads.some((lead) => lead.stage === "new")}
+            >
+              <Sparkles />
+              Analisar próximo lead <ChevronRight />
+            </button>
+          </div>
+          <div className="radar" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <i />
+          </div>
+          <div className="attention">
+            <span>Em foco agora</span>
+            {leads
+              .filter((lead) => lead.score > 0)
+              .slice(0, 3)
+              .map((lead) => (
+                <button key={lead.id} onClick={() => setSelected(lead)}>
+                  <Score value={lead.score} />
+                  <div>
+                    <strong>{lead.name}</strong>
+                    <small>{lead.nextAction}</small>
+                  </div>
+                  <ChevronRight />
+                </button>
+              ))}
+          </div>
+        </section>
+
+        <section className="followups" id="followups">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Agenda comercial</span>
+              <h2>Próximos follow-ups</h2>
+            </div>
+            <span>
+              {followUps.length} agendado{followUps.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="followup-list">
+            {followUps.length ? (
+              followUps.slice(0, 4).map((lead) => (
+                <button key={lead.id} onClick={() => setSelected(lead)}>
+                  <span className="followup-date">
+                    <strong>
+                      {new Date(lead.nextFollowUp!).toLocaleDateString("pt-BR", { day: "2-digit" })}
+                    </strong>
+                    <small>
+                      {new Date(lead.nextFollowUp!)
+                        .toLocaleDateString("pt-BR", { month: "short" })
+                        .replace(".", "")}
+                    </small>
+                  </span>
+                  <span>
+                    <strong>{lead.name}</strong>
+                    <small>{lead.nextAction || "Retomar contato"}</small>
+                  </span>
+                  <ChevronRight />
+                </button>
+              ))
+            ) : (
+              <div className="followup-empty">
+                <Check />
+                <span>
+                  <strong>Agenda em dia</strong>
+                  <small>Defina a próxima data de contato na ficha de um lead.</small>
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="funnel" id="analytics">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Funil em movimento</span>
+              <h2>Da descoberta ao contrato</h2>
+            </div>
+            <div className="funnel-heading-actions">
+              <span>{dashboard?.contacted ?? 0} contatos iniciados</span>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => setAnalyticsModalOpen(true)}
+              >
+                <BarChart3 size={14} />
+                <span>Ver Analytics de Conversão</span>
+              </button>
+            </div>
+          </div>
+          <div className="funnel-row">
+            {mainStages.map((stage, index) => (
+              <button key={stage} onClick={() => setFilter(stage)}>
+                <small>{String(index + 1).padStart(2, "0")}</small>
+                <strong>{dashboard?.stages?.[stage] ?? 0}</strong>
+                <span>{stageLabels[stage]}</span>
+              </button>
+            ))}
           </div>
         </section>
 
