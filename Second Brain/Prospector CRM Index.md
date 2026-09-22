@@ -36,6 +36,7 @@ tags:
 - [[Playbook - Auditoria de Sites e Quebra de Objeções]] — auditorias técnicas de velocidade e SEO local
 - [[Playbook - Propostas Comerciais e Fechamento]] — propostas em PDF e contratos
 - [[Playbook - Rotina Diaria e Find Skills]] — rotina matinal e busca de novas skills
+- [[Playbook - Biblioteca de Prompts das Skills]] — comandos e prompts prontos para copiar e colar
 - [[Customer Discovery]]
 - [[Weekly Review]]
 
