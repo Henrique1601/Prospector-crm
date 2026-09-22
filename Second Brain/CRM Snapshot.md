@@ -1,7 +1,7 @@
 ---
 type: generated
 source: Prospector CRM
-generated: 2026-09-22T17:40:25.624Z
+generated: 2026-09-22T17:51:44.692Z
 tags:
   - crm
   - snapshot
@@ -9,7 +9,7 @@ tags:
 
 # CRM Snapshot
 
-> Gerado automaticamente em 22/09/2026, 14:40:25. Edite os leads no CRM e execute `npm run brain:sync` para atualizar.
+> Gerado automaticamente em 22/09/2026, 14:51:44. Edite os leads no CRM e execute `npm run brain:sync` para atualizar.
 
 ## Funil
 

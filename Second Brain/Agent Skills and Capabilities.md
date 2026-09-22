@@ -9,158 +9,160 @@ tags:
   - mcp
   - automation
   - ai
+  - sales-stack
 ---
 
 # Agent Skills e Capacidades do Sistema
 
-> Guia detalhado de todos os Agent Skills e servidores MCP disponíveis no ambiente de desenvolvimento do Henrique para impulsionar o **Prospector CRM**, da prospecção à entrega do projeto.
+> Guia oficial e completo de todos os Agent Skills e servidores MCP disponíveis no ambiente do Henrique para transformar o **Prospector CRM** em uma máquina de captação, diagnóstico, demonstração e fechamento de clientes locais.
 
 ---
 
-## 1. Mapeamento de Skills e Aplicações no CRM
+## 1. Mapeamento de Skills no Ciclo de Vida do Cliente
 
 ```mermaid
 flowchart TD
-    A[Descoberta & Captação] --> B[Qualificação & Enriquecimento]
-    B --> C[Abordagem & Proposta]
-    C --> D[Gestão de Pipeline & Fechamento]
-    D --> E[Inteligência & Memória Permanente]
-
-    subgraph A [1. Descoberta]
-        A1[google-maps-platform]
-        A2[agent-browser]
-        A3[notion-mcp-server]
+    subgraph S1 [1. Descoberta & Captação]
+        M1[google-maps-platform]
+        M2[notion-mcp-server]
+        M3[find-skills]
     end
 
-    subgraph B [2. Qualificação]
-        B1[gemini-api-dev]
-        B2[account-research]
-        B3[chrome-devtools]
+    subgraph S2 [2. Diagnóstico & Quebra de Objeções]
+        D1[agent-browser / chrome-devtools]
+        D2[seo-audit]
+        D3[account-research / competitive-intelligence]
     end
 
-    subgraph C [3. Abordagem]
-        C1[modern-web-guidance]
-        C2[docx & pdf]
-        C3[Sales Playbook Henrique]
+    subgraph S3 [3. Demonstração & Mockup Rápido]
+        P1[lovable MCP]
+        P2[generative_ui / playground]
+        P3[hyperframes]
     end
 
-    subgraph D [4. Pipeline]
-        D1[neon-postgres]
-        D2[pipeline-review]
-        D3[build-dashboard]
+    subgraph S4 [4. Abordagem & Relacionamento]
+        A1[gemini-api-dev]
+        A2[daily-briefing]
+        A3[Sales Playbook Henrique]
     end
 
-    subgraph E [5. Memória]
-        E1[obsidian-vault]
-        E2[Second Brain]
+    subgraph S5 [5. Proposta & Fechamento]
+        F1[proposal-writer]
+        F2[docx / pdf / pptx]
+        F3[neon-postgres / pipeline-review]
     end
+
+    subgraph S6 [6. Conhecimento & Memória]
+        K1[obsidian-vault]
+        K2[ai-memory]
+    end
+
+    S1 --> S2 --> S3 --> S4 --> S5
+    S5 --> S6
 ```
 
 ---
 
-## 2. Detalhamento por Etapa Operacional
+## 2. Detalhamento e Como Utilizar Cada Skill
 
-### A. Prospecção e Captação de Empresas
+### 🚀 1. Geração de Demonstrações e Mockups Rápidos
 
-#### `google-maps-platform`
-- **O que faz:** Integração direta com Google Places API, Geocoding, Nearby Search e Detalhes de Locais.
-- **Como usar no CRM:**
-  - Resolução automática de links curtos do Google Maps (`maps.app.goo.gl` / `/maps/place/`).
-  - Busca em massa de estabelecimentos locais por segmento (ex: "Oficinas Mecânicas em Santos", "Restaurantes em São Vicente").
-  - Extração de telefone verificado, endereço completo, status de funcionamento e website oficial.
+#### `lovable` (Servidor MCP Ativo)
+- **O que faz:** Cria, edita e publica projetos frontend inteiros na nuvem de forma automatizada.
+- **Como Henrique pode usar:**
+  > *"Crie uma landing page moderna para a Marmitaria Silva Jardim com seções de cardápio do dia, depoimentos de clientes locais e botão flutuante de pedidos no WhatsApp."*
+- **Efeito comercial:** Em vez de prometer que vai fazer, você já manda o link provisório funcionando no WhatsApp do cliente. Isso gera encanto imediato e diferencia Henrique de 99% da concorrência.
 
-#### `notion-mcp-server`
-- **O que faz:** Leitura, busca e sincronização de bancos de dados e páginas no Notion.
-- **Como usar no CRM:**
-  - Importação de leads anotados no Notion direto para o funil do Prospector CRM.
-  - Sincronização bidirecional de notas de reuniões e follow-ups entre o CRM e o workspace do Notion.
+#### `generative_ui` & `playground` & `web-artifacts-builder`
+- **O que faz:** Renderiza interfaces completas, protótipos em React e dashboards interativos na hora.
+- **Como usar:** Para criar mockups visuais e telas interativas antes de programar o código final ou para mostrar em videoconferência/reunião presencial.
 
-#### `agent-browser` & `chrome-devtools`
-- **O que faz:** Automação programática e inspeção via navegador Headless / Chromium.
-- **Como usar no CRM:**
-  - Checar se o site de um lead realmente está no ar ou se é uma página quebrada/desatualizada.
-  - Tirar prints automáticos do site do cliente para montar demonstrações visuais do tipo "Antes vs Depois".
-  - Auditar velocidade de carregamento mobile (LCP) de sites existentes para embasar o argumento de venda com dados técnicos reais.
+#### `hyperframes` & `hyperframes-cli`
+- **O que faz:** Renderiza vídeos promocionais e motion graphics a partir de código HTML.
+- **Como usar:** Gerar um mini-vídeo de 10 a 15 segundos apresentando a nova identidade do site do cliente para enviar pelo WhatsApp ou Instagram.
 
 ---
 
-### B. Qualificação e Pesquisa com IA
+### 🔍 2. Diagnóstico Técnico e Quebra de Objeções
 
-#### `gemini-api-dev` & `gemini-interactions-api`
-- **O que faz:** Conexão com os modelos mais recentes do Google Gemini para raciocínio complexo, análise de texto, geração multimodal e extração de dados estruturados.
-- **Como usar no CRM:**
-  - Análise instantânea do lead para determinar oportunidade real (`siteStatus`, `digitalPresence`, `opportunity`, `reason`).
-  - Geração de três abordagens de contato personalizadas adaptadas ao segmento e às credenciais do Henrique.
-  - Elaboração automática do briefing da demonstração (`demoBrief`).
+#### `seo-audit` (Instalado via `skills.sh`)
+- **O que faz:** Auditoria completa de SEO on-page, meta tags, títulos, schema.org e indexação no Google.
+- **Como usar:**
+  > *"Rode um seo-audit no site do concorrente X e no site do lead Y para comparar a presença dos dois nas buscas de Santos."*
+- **Argumento de venda:** Prova técnica irrefutável de por que o cliente não está aparecendo nas primeiras posições de busca da cidade.
 
-#### `account-research`
-- **O que faz:** Pesquisa aprofundada de contas empresariais, sócios, posicionamento e presença online.
-- **Como usar no CRM:**
-  - Investigar decisores de empresas maiores, histórico de marca e clientes antes de uma reunião de apresentação.
+#### `agent-browser` & `chrome-devtools` & `debug-optimize-lcp`
+- **O que faz:** Abre navegadores reais em segundo plano, tira capturas de tela e audita performance (Largest Contentful Paint, Core Web Vitals).
+- **Como usar:**
+  > *"Abra o site atual da Auto Elétrica Mathias, tire um screenshot mobile e meça a velocidade de carregamento no 4G."*
+- **Argumento de venda:** *"O site atual de vocês demora 7 segundos para carregar no celular; cada segundo de atraso faz você perder 20% das pessoas que clicam."*
 
----
-
-### C. Abordagem, Proposta e Entrega
-
-#### `Sales Playbook Henrique`
-- **O que faz:** Abordagem consultiva com portfólio oficial (`https://bezerraportifolio.netlify.app/`), LinkedIn, WhatsApp e e-mail.
-- **Como usar no CRM:**
-  - Alternância em 1 clique entre 3 abordagens no drawer do lead:
-    1. **Completa / Portfólio**: pitch consultivo com serviços, portfólio e contatos.
-    2. **Curta WhatsApp**: mensagem rápida pedindo permissão para demonstrar ideia.
-    3. **Demonstração**: texto focado na solução já rascunhada para o negócio.
-  - Botão com abertura direta no WhatsApp com a mensagem pronta preenchida (`wa.me/55...?text=...`).
-
-#### `docx` e `pdf`
-- **O que faz:** Leitura, criação e formatação profissional de documentos Word (`.docx`) e PDFs (`.pdf`).
-- **Como usar no CRM:**
-  - Gerar propostas comerciais em PDF com design elegante, termos, escopo e tabela de investimento para envio ao cliente após a reunião.
-  - Gerar minutas de contratos de desenvolvimento de site e suporte mensal.
-
-#### `modern-web-guidance` & `frontend-design`
-- **O que faz:** Boas práticas de design e desenvolvimento para interfaces modernas, responsivas e performáticas.
-- **Como usar no CRM:**
-  - Manter a UI do Prospector CRM polida, rápida e com excelente usabilidade no desktop e celular.
-  - Construir mockups de landing pages demonstrativas para clientes com alto impacto visual.
+#### `account-research` & `competitive-intelligence`
+- **O que faz:** Mapeia sócios, faturamento estimado, histórico da empresa e concorrentes diretos no mesmo bairro.
+- **Como usar:** Identificar os pontos fracos dos concorrentes locais para propor diferenciais únicos no novo site.
 
 ---
 
-### D. Banco de Dados, Infraestrutura e Pipeline
+### 💼 3. Fechamento, Propostas e Contratos
 
-#### `neon-postgres`
-- **O que faz:** Gerenciamento do Postgres serverless no Neon (branching, pooling de conexões, migrations).
-- **Como usar no CRM:**
-  - O Prospector já possui driver para Neon (`DATABASE_URL`). O skill permite inspecionar tabelas, criar migrations para histórico de contatos e criar réplicas de homologação em segundos.
+#### `proposal-writer` (Instalado via `skills.sh`)
+- **O que faz:** Estruturação de propostas comerciais de alto impacto (dor do cliente, escopo da solução, cronograma, investimento e retorno esperado).
+- **Como usar:**
+  > *"Crie uma proposta comercial sob medida para a Oficina Lucas Fortunato focada em site institucional + botão de agendamento no WhatsApp + manutenção mensal."*
+
+#### `pdf` e `docx`
+- **O que faz:** Geração automatizada de documentos Word e PDFs profissionais com formatação, tabelas de preço, termos e campos de assinatura.
+- **Como usar:**
+  > *"Gere a proposta da Oficina Lucas Fortunato em PDF profissional com o logotipo do Henrique, tabela de parcelamento e dados de contato para envio no WhatsApp."*
+
+#### `pptx`
+- **O que faz:** Cria apresentações de slides (.pptx) para reuniões com empresas de maior porte ou clínicas médicas.
+
+#### `xlsx`
+- **O que faz:** Planilhas financeiras de controle de mensalidades de suporte e hospedagem de clientes fechados.
+
+---
+
+### ⚡ 4. Rotina Diária e Inteligência Comercial
+
+#### `daily-briefing`
+- **O que faz:** Organiza as tarefas comerciais matinais priorizadas por impacto.
+- **Como usar:**
+  > *"Gere meu daily briefing para hoje com os leads em estágio de acompanhamento e os 5 contatos prioritários para disparar abordagem."*
 
 #### `pipeline-review` & `build-dashboard`
-- **O que faz:** Análise de saúde do funil comercial, identificação de leads travados e geração de painéis interativos.
-- **Como usar no CRM:**
-  - Auditoria semanal do funil: quantos leads foram contatados, taxa de resposta e tempo médio entre etapas.
-  - Acompanhamento dos agendamentos de follow-up (`nextFollowUp`).
+- **O que faz:** Avalia a saúde do funil do CRM, identifica leads esquecidos há mais de 7 dias e gera gráficos interativos.
+
+#### `gemini-api-dev` & `gemini-interactions-api`
+- **O que faz:** Motor de inteligência que analisa os dados da empresa, pontua o lead (score 0-100) e escreve as 3 variações de mensagens comerciais personalizadas.
 
 ---
 
-### E. Memória Permanente e Gestão do Conhecimento
+### 🧠 5. Memória e Expansão Contínua de Skills
 
-#### `obsidian-vault`
-- **O que faz:** Leitura, criação e conexão de notas no Obsidian Second Brain através de wikilinks (`[[Nota]]`) e metadados YAML.
-- **Como usar no CRM:**
-  - Registrar aprendizados de prospecção, objeções mais comuns de comerciantes locais e refinamentos no playbook de vendas.
-  - Manter o CRM e o Second Brain sempre alinhados como fonte única da verdade.
+#### `find-skills` (Instalado)
+- **O que faz:** Gerenciador do ecossistema de skills (`npx skills`). Permite pesquisar e instalar novas automações globais com um comando:
+  ```bash
+  # Buscar qualquer habilidade nova
+  npx skills find [termo]
 
----
+  # Instalar skill globalmente
+  npx skills add <owner/repo@skill> -g -y
+  ```
 
-## 3. Matriz Rápida de Ativação de Skills
-
-| Cenário de Uso | Skills Recomendados |
-| :--- | :--- |
-| **Captação de novos leads locais** | `google-maps-platform`, `notion-mcp-server` |
-| **Auditar site lento de cliente** | `chrome-devtools`, `agent-browser`, `debug-optimize-lcp` |
-| **Qualificar e gerar mensagens** | `gemini-api-dev`, `Sales Playbook Henrique` |
-| **Enviar proposta formal** | `docx`, `pdf` |
-| **Escalar persistência na nuvem** | `neon-postgres` |
-| **Auditar e planejar semana** | `pipeline-review`, `obsidian-vault` |
+#### `obsidian-vault` & `ai-memory`
+- **O que faz:** Guarda o histórico de negociações, objeções vencidas, notas de clientes e playbooks estratégicos na pasta `Second Brain/`.
 
 ---
 
-Relacionadas: [[Prospector CRM Index]] · [[Sales Playbook]] · [[Architecture Map]] · [[Operating System]]
+## 3. Playbooks Operacionais Dedicados
+
+Para aprender a usar cada conjunto na prática diária, consulte as notas dedicadas:
+1. [[Playbook - Demonstracoes e Mockups com Lovable]]
+2. [[Playbook - Auditoria de Sites e Quebra de Objeções]]
+3. [[Playbook - Propostas Comerciais e Fechamento]]
+4. [[Playbook - Rotina Diaria e Find Skills]]
+
+---
+
+Relacionadas: [[Prospector CRM Index]] · [[Sales Playbook]] · [[Product Vision]] · [[Roadmap]]

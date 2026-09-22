@@ -29,9 +29,13 @@ tags:
 - [[Decision Log]]
 - [[Research Inbox]]
 
-## Comercial
+## Comercial e Playbooks
 
-- [[Sales Playbook]]
+- [[Sales Playbook]] — scripts oficiais do Henrique e 3 variações de abordagem
+- [[Playbook - Demonstracoes e Mockups com Lovable]] — criação de protótipos de sites ao vivo
+- [[Playbook - Auditoria de Sites e Quebra de Objeções]] — auditorias técnicas de velocidade e SEO local
+- [[Playbook - Propostas Comerciais e Fechamento]] — propostas em PDF e contratos
+- [[Playbook - Rotina Diaria e Find Skills]] — rotina matinal e busca de novas skills
 - [[Customer Discovery]]
 - [[Weekly Review]]
 
