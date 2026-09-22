@@ -17,8 +17,12 @@ let databasePool: Pool | undefined;
 function getDatabasePool() {
   if (!process.env.DATABASE_URL) return undefined;
   if (!databasePool) {
+    const connectionUrl = new URL(process.env.DATABASE_URL);
+    if (connectionUrl.searchParams.get("sslmode") === "require") {
+      connectionUrl.searchParams.set("sslmode", "verify-full");
+    }
     databasePool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: connectionUrl.toString(),
       max: 3,
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis: 10_000
