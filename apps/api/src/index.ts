@@ -6,7 +6,7 @@ import { analyzeWithAi, demoBrief, localAnalysis } from "./ai.js";
 import { fetchNotionDatabase, parseCsvToLeads } from "./importers.js";
 import { classifyWebsite, detectWhatsappAndPhone, resolveMultipleMapsLinks } from "./maps.js";
 import { readStore, writeStore } from "./store.js";
-import { stages, type Lead } from "./types.js";
+import { stages, type CityConversionStats, type ConversionAnalytics, type Lead, type SegmentConversionStats } from "./types.js";
 
 const app = express();
 app.use(cors());
@@ -106,6 +106,86 @@ app.get("/api/dashboard", async (_req, res) => {
   res.json({ total: leads.length, highPriority: leads.filter((lead) => ["high", "urgent"].includes(lead.priority)).length, contacted, replies, won: count("won"), responseRate: contacted ? Math.round((replies / contacted) * 100) : 0, stages: Object.fromEntries(stages.map((item) => [item, count(item)])) });
 });
 
+app.get("/api/analytics/conversion", async (_req, res) => {
+  const { leads } = await readStore();
+  const totalLeads = leads.length;
+  const contactedLeads = leads.filter((l) => !["new", "analyzed"].includes(l.stage)).length;
+  const repliesCount = leads.filter((l) => ["replied", "meeting", "proposal", "won"].includes(l.stage)).length;
+  const proposalsCount = leads.filter((l) => ["proposal", "won"].includes(l.stage)).length;
+  const wonCount = leads.filter((l) => l.stage === "won").length;
+  const lostCount = leads.filter((l) => l.stage === "lost").length;
+
+  const overallWinRate = totalLeads > 0 ? Math.round((wonCount / totalLeads) * 100) : 0;
+  const contactToReplyRate = contactedLeads > 0 ? Math.round((repliesCount / contactedLeads) * 100) : 0;
+  const replyToProposalRate = repliesCount > 0 ? Math.round((proposalsCount / repliesCount) * 100) : 0;
+  const proposalToWonRate = proposalsCount > 0 ? Math.round((wonCount / proposalsCount) * 100) : 0;
+
+  // Breakdown por Cidade
+  const cityMap = new Map<string, Lead[]>();
+  for (const lead of leads) {
+    const city = lead.city || "Outra";
+    if (!cityMap.has(city)) cityMap.set(city, []);
+    cityMap.get(city)!.push(lead);
+  }
+
+  const cities: CityConversionStats[] = Array.from(cityMap.entries()).map(([city, list]) => {
+    const total = list.length;
+    const contacted = list.filter((l) => !["new", "analyzed"].includes(l.stage)).length;
+    const replies = list.filter((l) => ["replied", "meeting", "proposal", "won"].includes(l.stage)).length;
+    const won = list.filter((l) => l.stage === "won").length;
+    return {
+      city,
+      total,
+      contacted,
+      replies,
+      won,
+      responseRate: contacted > 0 ? Math.round((replies / contacted) * 100) : 0,
+      winRate: total > 0 ? Math.round((won / total) * 100) : 0
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  // Breakdown por Segmento
+  const segmentMap = new Map<string, Lead[]>();
+  for (const lead of leads) {
+    const segment = lead.segment || "Geral";
+    if (!segmentMap.has(segment)) segmentMap.set(segment, []);
+    segmentMap.get(segment)!.push(lead);
+  }
+
+  const segments: SegmentConversionStats[] = Array.from(segmentMap.entries()).map(([segment, list]) => {
+    const total = list.length;
+    const contacted = list.filter((l) => !["new", "analyzed"].includes(l.stage)).length;
+    const replies = list.filter((l) => ["replied", "meeting", "proposal", "won"].includes(l.stage)).length;
+    const won = list.filter((l) => l.stage === "won").length;
+    return {
+      segment,
+      total,
+      contacted,
+      replies,
+      won,
+      responseRate: contacted > 0 ? Math.round((replies / contacted) * 100) : 0,
+      winRate: total > 0 ? Math.round((won / total) * 100) : 0
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  const analytics: ConversionAnalytics = {
+    totalLeads,
+    contactedLeads,
+    repliesCount,
+    proposalsCount,
+    wonCount,
+    lostCount,
+    overallWinRate,
+    contactToReplyRate,
+    replyToProposalRate,
+    proposalToWonRate,
+    cities,
+    segments
+  };
+
+  res.json(analytics);
+});
+
 app.post("/api/leads/resolve-maps", async (req, res) => {
   const schema = z.object({
     urls: z.array(z.string()).optional(),
@@ -138,7 +218,6 @@ app.post("/api/leads/preview/notion", async (req, res) => {
   const results = await fetchNotionDatabase(apiKey, databaseId, store.leads);
   res.json(results);
 });
-
 
 const leadInput = z.object({
   name: z.string().min(2),
@@ -196,6 +275,99 @@ app.post("/api/leads", async (req, res) => {
   store.leads.push(lead);
   await writeStore(store);
   res.status(201).json(lead);
+});
+
+const webhookInput = z.object({
+  name: z.string().min(1).optional(),
+  empresa: z.string().min(1).optional(),
+  nome: z.string().min(1).optional(),
+  segment: z.string().optional(),
+  segmento: z.string().optional(),
+  city: z.string().optional(),
+  cidade: z.string().optional(),
+  state: z.string().optional(),
+  uf: z.string().optional(),
+  phone: z.string().optional(),
+  telefone: z.string().optional(),
+  whatsapp: z.string().optional(),
+  website: z.string().optional(),
+  site: z.string().optional(),
+  message: z.string().optional(),
+  mensagem: z.string().optional(),
+  source: z.string().optional(),
+  origem: z.string().optional()
+});
+
+app.post("/api/webhooks/lead", async (req, res) => {
+  const configuredToken = process.env.WEBHOOK_TOKEN;
+  if (configuredToken) {
+    const providedToken = req.headers["x-webhook-token"] || req.query.token;
+    if (providedToken !== configuredToken) {
+      return res.status(401).json({ message: "Token de webhook inválido ou ausente" });
+    }
+  }
+
+  const parsed = webhookInput.parse(req.body);
+  const name = parsed.name || parsed.empresa || parsed.nome || "Novo Lead Web";
+  const segment = parsed.segment || parsed.segmento || "Interessado Geral";
+  const city = parsed.city || parsed.cidade || "Santos";
+  const state = parsed.state || parsed.uf || "SP";
+  const rawPhone = parsed.phone || parsed.telefone || parsed.whatsapp;
+  const rawWebsite = parsed.website || parsed.site;
+  const message = parsed.message || parsed.mensagem;
+  const source = parsed.source || parsed.origem || "Webhook Externo";
+
+  const phoneDetection = detectWhatsappAndPhone(rawPhone, rawWebsite);
+  const siteInfo = classifyWebsite(rawWebsite);
+
+  const phone = rawPhone || phoneDetection.phone;
+  const whatsappUrl = phoneDetection.whatsappUrl;
+  const hasWhatsapp = phoneDetection.hasWhatsapp;
+  const website = siteInfo.isWhatsappOnly ? undefined : rawWebsite;
+
+  const now = new Date().toISOString();
+  let lead: Lead = {
+    id: crypto.randomUUID(),
+    name,
+    segment,
+    city,
+    state,
+    website,
+    phone,
+    whatsappUrl,
+    hasWhatsapp,
+    stage: "new",
+    score: 75,
+    priority: "high",
+    siteStatus: website ? "good" : "none",
+    digitalPresence: website ? "medium" : "low",
+    nextAction: "Responder lead recebido via webhook",
+    sources: [source],
+    interactions: message
+      ? [{ id: crypto.randomUUID(), type: "note", content: `Mensagem recebida via webhook (${source}): "${message}"`, createdAt: now }]
+      : [{ id: crypto.randomUUID(), type: "note", content: `Lead capturado automaticamente via webhook (${source})`, createdAt: now }],
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const aiResult = (await analyzeWithAi(lead)) || localAnalysis(lead);
+  lead = {
+    ...lead,
+    ...aiResult,
+    stage: "analyzed",
+    analyzedAt: now,
+    updatedAt: now
+  };
+
+  const store = await readStore();
+  store.leads.unshift(lead);
+  await writeStore(store);
+
+  res.status(201).json({
+    success: true,
+    message: "Lead recebido e qualificado com sucesso",
+    lead
+  });
 });
 
 app.post("/api/leads/batch", async (req, res) => {
@@ -288,27 +460,40 @@ app.patch("/api/leads/:id", async (req, res) => {
 });
 
 app.post("/api/leads/:id/analyze", async (req, res) => {
-  const store = await readStore(); const lead = store.leads.find((item) => item.id === req.params.id);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
   if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
   const result = (await analyzeWithAi(lead)) || localAnalysis(lead);
-  Object.assign(lead, result, { stage: "analyzed", analyzedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); await writeStore(store); res.json(lead);
+  Object.assign(lead, result, { stage: "analyzed", analyzedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  await writeStore(store);
+  res.json(lead);
 });
 
 app.post("/api/leads/:id/demo", async (req, res) => {
-  const store = await readStore(); const lead = store.leads.find((item) => item.id === req.params.id);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
   if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
-  lead.demoBrief = demoBrief(lead); lead.updatedAt = new Date().toISOString(); await writeStore(store); res.json(lead);
+  lead.demoBrief = demoBrief(lead);
+  lead.updatedAt = new Date().toISOString();
+  await writeStore(store);
+  res.json(lead);
 });
 
 app.post("/api/leads/:id/interactions", async (req, res) => {
   const schema = z.object({ type: z.enum(["note", "whatsapp", "email", "call", "meeting", "reply"]), content: z.string().min(1) });
-  const input = schema.parse(req.body); const store = await readStore(); const lead = store.leads.find((item) => item.id === req.params.id);
+  const input = schema.parse(req.body);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
   if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
-  lead.interactions.unshift({ id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() }); lead.updatedAt = new Date().toISOString(); await writeStore(store); res.status(201).json(lead);
+  lead.interactions.unshift({ id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() });
+  lead.updatedAt = new Date().toISOString();
+  await writeStore(store);
+  res.status(201).json(lead);
 });
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  const message = error instanceof Error ? error.message : "Erro inesperado"; res.status(400).json({ message });
+  const message = error instanceof Error ? error.message : "Erro inesperado";
+  res.status(400).json({ message });
 });
 
 const port = Number(process.env.PORT || 3333);

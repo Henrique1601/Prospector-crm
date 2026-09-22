@@ -10,6 +10,15 @@ export interface Interaction {
   createdAt: string;
 }
 
+export interface SuggestedMessages {
+  portfolio?: string;
+  short?: string;
+  direct?: string;
+  curiosity?: string;
+  invisible_loss?: string;
+  ready_question?: string;
+}
+
 export interface Lead {
   id: string;
   name: string;
@@ -30,13 +39,8 @@ export interface Lead {
   opportunity?: string;
   reason?: string;
   suggestedMessage?: string;
-  suggestedMessages?: {
-    portfolio?: string;
-    short?: string;
-    direct?: string;
-  };
+  suggestedMessages?: SuggestedMessages;
   nextAction?: string;
-
   nextFollowUp?: string;
   sources: string[];
   interactions: Interaction[];
@@ -67,5 +71,41 @@ export interface ResolvedPlacePreview {
   error?: string;
 }
 
-export interface Store { leads: Lead[] }
+export interface Store {
+  leads: Lead[];
+}
 
+export interface CityConversionStats {
+  city: string;
+  total: number;
+  contacted: number;
+  replies: number;
+  won: number;
+  responseRate: number;
+  winRate: number;
+}
+
+export interface SegmentConversionStats {
+  segment: string;
+  total: number;
+  contacted: number;
+  replies: number;
+  won: number;
+  responseRate: number;
+  winRate: number;
+}
+
+export interface ConversionAnalytics {
+  totalLeads: number;
+  contactedLeads: number;
+  repliesCount: number;
+  proposalsCount: number;
+  wonCount: number;
+  lostCount: number;
+  overallWinRate: number;
+  contactToReplyRate: number;
+  replyToProposalRate: number;
+  proposalToWonRate: number;
+  cities: CityConversionStats[];
+  segments: SegmentConversionStats[];
+}

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Lead } from "./types.js";
+import type { Lead, SuggestedMessages } from "./types.js";
 
 const key = process.env.AISA_API_KEY;
 const client = key ? new OpenAI({ apiKey: key, baseURL: "https://api.aisa.one/v1" }) : null;
@@ -38,10 +38,13 @@ Retorne um JSON com:
 - opportunity: resumo claro da oportunidade digital
 - reason: justificativa objetiva baseada em evidências
 - suggestedMessage: mensagem padrão de abordagem
-- suggestedMessages: objeto contendo 3 variações:
+- suggestedMessages: objeto contendo variações estratégicas de abordagem:
   * portfolio: texto completo e consultivo apresentando especialidades, portfólio de Henrique e contatos
   * short: mensagem curta e amigável para WhatsApp pedindo permissão para mostrar uma ideia
   * direct: mensagem focada em demonstrar a proposta que já foi pensada para o negócio
+  * curiosity: "Posso te fazer uma pergunta rápida? Você sabe quantos clientes podem estar procurando exatamente pelo que sua empresa oferece… e acabam encontrando outra empresa primeiro?" adaptada para o lead
+  * invisible_loss: "E se o próximo cliente da sua empresa estiver procurando exatamente pelo que você oferece — mas não estiver encontrando você?" adaptada para o lead
+  * ready_question: "Sua empresa já está pronta para ser encontrada por novos clientes na internet?" adaptada para o lead
 - nextAction: próxima ação recomendada`
         },
         { role: "user", content: JSON.stringify(lead) }
@@ -108,6 +111,37 @@ ${HENRIQUE_PROFILE.name}`;
 
   const direct = `Olá equipe da ${lead.name}! Meu nome é Henrique, sou desenvolvedor web. Analisei a presença digital no segmento de ${lead.segment.toLowerCase()} em ${lead.city} e elaborei um briefing demonstrativo focado em atrair mais clientes para o WhatsApp de vocês. Posso te enviar o modelo sem compromisso para vocês avaliarem? Contato: ${HENRIQUE_PROFILE.whatsapp} | Portfólio: ${HENRIQUE_PROFILE.portfolio}`;
 
+  const curiosity = `Olá, tudo bem? Posso te fazer uma pergunta rápida?
+
+Você sabe quantos clientes podem estar procurando exatamente pelo que a ${lead.name} oferece em ${lead.city}… e acabam encontrando outra empresa primeiro?
+
+Sou o Henrique, desenvolvedor web aqui da região. Notei essa oportunidade no segmento de ${lead.segment.toLowerCase()} e montei uma proposta prática de como posicionar a ${lead.name} no topo das buscas e direcionar esses contatos direto pro seu WhatsApp.
+
+Posso te mandar uma prévia rápida sem compromisso? (Portfólio: ${HENRIQUE_PROFILE.portfolio})`;
+
+  const invisible_loss = `Olá equipe da ${lead.name}! Tudo bem?
+
+E se o próximo cliente da sua empresa estiver procurando exatamente pelo que vocês oferecem em ${lead.city} — mas não estiver encontrando vocês na internet?
+
+Hoje quem busca por ${lead.segment.toLowerCase()} toma a decisão em segundos pelo celular. Meu nome é Henrique, sou desenvolvedor de presença digital para negócios locais. Montei uma ideia sob medida para a ${lead.name} atrair esses clientes.
+
+Vale 2 minutinhos para você dar uma olhada?`;
+
+  const ready_question = `Olá! A ${lead.name} já está pronta para ser encontrada por novos clientes na internet?
+
+Notei que a demanda por ${lead.segment.toLowerCase()} em ${lead.city} está crescendo e que um site moderno e integrado ao WhatsApp colocaria vocês em grande vantagem competitiva.
+
+Meu nome é Henrique, sou desenvolvedor web especializado na região. Preparei uma demonstração prática sem nenhum custo para vocês avaliarem. Posso compartilhar o link?`;
+
+  const suggestedMessages: SuggestedMessages = {
+    portfolio,
+    short,
+    direct,
+    curiosity,
+    invisible_loss,
+    ready_question
+  };
+
   return {
     score,
     priority: score >= 86 ? "urgent" : score >= 72 ? "high" : "medium",
@@ -120,11 +154,7 @@ ${HENRIQUE_PROFILE.name}`;
       ? "Existe um endereço digital informado; a qualidade visual e mobile precisa de revisão."
       : "O cadastro ainda não possui site confirmado. Oportunidade excelente de criação de primeiro site.",
     suggestedMessage: portfolio,
-    suggestedMessages: {
-      portfolio,
-      short,
-      direct
-    },
+    suggestedMessages,
     nextAction: "Revisar os dados e iniciar o contato manual"
   };
 }
