@@ -11,7 +11,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   leads: () => request<Lead[]>("/api/leads"),
   dashboard: () => request<DashboardData>("/api/dashboard"),
-  health: () => request<{ ok: boolean; ai: boolean; mode: string }>("/api/health"),
+  health: () => request<{ ok: boolean; ai: boolean; mode: string; storage: "local-file" | "temporary" }>("/api/health"),
   analyze: (id: string) => request<Lead>(`/api/leads/${id}/analyze`, { method: "POST" }),
   demo: (id: string) => request<Lead>(`/api/leads/${id}/demo`, { method: "POST" }),
   update: (id: string, body: Partial<Lead>) => request<Lead>(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
