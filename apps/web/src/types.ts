@@ -12,7 +12,7 @@ export interface Lead {
     direct?: string;
   };
   nextAction?: string; nextFollowUp?: string; sources: string[]; interactions: Interaction[];
-  demoBrief?: string; createdAt: string; updatedAt: string; analyzedAt?: string;
+  demoBrief?: string; demoUrl?: string; createdAt: string; updatedAt: string; analyzedAt?: string;
 }
 export interface ResolvedPlacePreview {
   sourceUrl: string;
@@ -26,6 +26,7 @@ export interface ResolvedPlacePreview {
   phone?: string;
   hasWhatsapp?: boolean;
   whatsappUrl?: string;
+  demoUrl?: string;
   siteStatus: "unknown" | "none" | "weak" | "good";
   digitalPresence: string;
   isDuplicate?: boolean;

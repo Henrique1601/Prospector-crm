@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  Bell,
   Bot,
   BriefcaseBusiness,
   CalendarClock,
@@ -10,8 +11,10 @@ import {
   ChevronRight,
   CircleGauge,
   Copy,
+  Download,
   Edit3,
   ExternalLink,
+  FileText,
   Globe,
   Layers,
   LayoutDashboard,
@@ -31,6 +34,8 @@ import {
 } from "lucide-react";
 import { api } from "./api";
 import { BatchImportModal } from "./BatchImportModal";
+import { ProposalModal } from "./ProposalModal";
+import { ObjectionsAssistant } from "./ObjectionsAssistant";
 import type { DashboardData, Lead, Stage } from "./types";
 
 const stageLabels: Record<Stage, string> = {
@@ -85,17 +90,20 @@ function Metric({
 function LeadDrawer({
   lead,
   onClose,
-  onChanged
+  onChanged,
+  onOpenProposal
 }: {
   lead: Lead;
   onClose: () => void;
   onChanged: (lead: Lead) => void;
+  onOpenProposal: (lead: Lead) => void;
 }) {
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedApproach, setSelectedApproach] = useState<"portfolio" | "short" | "direct">("portfolio");
+  const [demoUrlInput, setDemoUrlInput] = useState(lead.demoUrl || "");
 
   const [editForm, setEditForm] = useState({
     name: lead.name,
@@ -117,8 +125,9 @@ function LeadDrawer({
       phone: lead.phone || "",
       address: lead.address || ""
     });
+    setDemoUrlInput(lead.demoUrl || "");
     setIsEditing(false);
-  }, [lead.id, lead.updatedAt]);
+  }, [lead.id, lead.updatedAt, lead.demoUrl]);
 
   const act = async (name: string, fn: () => Promise<Lead>) => {
     setBusy(name);
@@ -169,6 +178,15 @@ function LeadDrawer({
         whatsappUrl
       });
       setIsEditing(false);
+      return updated;
+    });
+  };
+
+  const handleSaveDemoUrl = async () => {
+    await act("save-demo-url", async () => {
+      const updated = await api.update(lead.id, {
+        demoUrl: demoUrlInput.trim() || undefined
+      });
       return updated;
     });
   };
@@ -339,6 +357,43 @@ function LeadDrawer({
           )}
         </div>
 
+        <div className="drawer-proposal-action-box">
+          <button
+            type="button"
+            className="btn-open-proposal"
+            onClick={() => onOpenProposal(lead)}
+          >
+            <FileText size={16} />
+            <span>Gerar Proposta Comercial (PDF / WhatsApp)</span>
+          </button>
+        </div>
+
+        {lead.website && (
+          <div className="drawer-website-preview-card">
+            <div className="website-preview-header">
+              <span><Globe size={13} /> Site atual do lead</span>
+              <a
+                href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className="website-preview-visit-link"
+              >
+                Visitar site <ExternalLink size={11} />
+              </a>
+            </div>
+            <div className="website-preview-media">
+              <img
+                src={`https://image.thum.io/get/width/400/crop/600/${lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}`}
+                alt={`Preview do site de ${lead.name}`}
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLElement).parentElement!.style.display = "none";
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="drawer-followup-card">
           <div className="followup-card-header">
             <span className="followup-card-title">
@@ -483,16 +538,28 @@ function LeadDrawer({
               ))}
             </select>
           </label>
+
+          <ObjectionsAssistant
+            lead={lead}
+            onLoggedInteraction={(noteText) => {
+              api.interaction(lead.id, noteText).then(onChanged).catch(() => {});
+            }}
+          />
         </section>
 
         <section>
           <div className="section-title">
-            <h3>Demonstração</h3>
+            <h3>Demonstração & Landing Page</h3>
+            {lead.demoUrl && (
+              <a href={lead.demoUrl} target="_blank" rel="noreferrer" className="demo-live-badge">
+                <ExternalLink size={12} /> Ver Online
+              </a>
+            )}
           </div>
           {lead.demoBrief ? (
             <pre className="brief">{lead.demoBrief}</pre>
           ) : (
-            <p>Gere um briefing de landing page usando somente os dados conhecidos deste lead.</p>
+            <p>Gere um briefing de landing page ou vincule um protótipo construído no Lovable.</p>
           )}
           <button
             className="primary full"
@@ -502,6 +569,36 @@ function LeadDrawer({
             <Bot size={16} />
             {busy === "demo" ? "Preparando…" : "Gerar briefing da demonstração"}
           </button>
+
+          <div className="drawer-demo-url-box">
+            <span className="demo-url-label">Link do Protótipo / Demonstração (ex: Lovable)</span>
+            <div className="input-action-row">
+              <input
+                type="url"
+                placeholder="https://preview--lead.lovable.app"
+                value={demoUrlInput}
+                onChange={(e) => setDemoUrlInput(e.target.value)}
+              />
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy === "save-demo-url"}
+                onClick={handleSaveDemoUrl}
+              >
+                {busy === "save-demo-url" ? "Salvando..." : "Salvar Link"}
+              </button>
+            </div>
+            {lead.demoUrl && (
+              <a
+                href={lead.demoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="demo-direct-link"
+              >
+                <ExternalLink size={13} /> Abrir protótipo Lovable em nova aba
+              </a>
+            )}
+          </div>
         </section>
 
         <section>
@@ -718,8 +815,12 @@ export function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [proposalModalLead, setProposalModalLead] = useState<Lead | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Stage | "all">("all");
+  type QuickFilter = "all" | "no-site" | "with-whatsapp" | "today-followup" | "high-priority";
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [aiMode, setAiMode] = useState("local");
@@ -742,14 +843,55 @@ export function App() {
     void load();
   }, []);
 
+  const todayIsoStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const todayFollowUps = useMemo(() => {
+    return leads.filter((lead) => Boolean(lead.nextFollowUp && lead.nextFollowUp.slice(0, 10) <= todayIsoStr));
+  }, [leads, todayIsoStr]);
+
+  const cities = useMemo(() => {
+    const set = new Set(leads.map((l) => l.city).filter(Boolean));
+    return Array.from(set).sort();
+  }, [leads]);
+
+  const quickCounts = useMemo(() => {
+    return {
+      all: leads.length,
+      noSite: leads.filter((l) => l.siteStatus === "none" || !l.website || l.website.includes("wa.me")).length,
+      withWhatsapp: leads.filter((l) => Boolean(l.hasWhatsapp)).length,
+      todayFollowup: todayFollowUps.length,
+      highPriority: leads.filter((l) => ["high", "urgent"].includes(l.priority)).length
+    };
+  }, [leads, todayFollowUps]);
+
   const visible = useMemo(
     () =>
-      leads.filter(
-        (lead) =>
-          (filter === "all" || lead.stage === filter) &&
-          `${lead.name} ${lead.segment} ${lead.city}`.toLowerCase().includes(query.toLowerCase())
-      ),
-    [leads, filter, query]
+      leads.filter((lead) => {
+        if (filter !== "all" && lead.stage !== filter) return false;
+        if (cityFilter !== "all" && lead.city !== cityFilter) return false;
+
+        if (quickFilter === "no-site") {
+          const hasNoSite = lead.siteStatus === "none" || !lead.website || lead.website.includes("wa.me");
+          if (!hasNoSite) return false;
+        } else if (quickFilter === "with-whatsapp") {
+          if (!lead.hasWhatsapp) return false;
+        } else if (quickFilter === "today-followup") {
+          if (!lead.nextFollowUp || lead.nextFollowUp.slice(0, 10) > todayIsoStr) return false;
+        } else if (quickFilter === "high-priority") {
+          if (!["high", "urgent"].includes(lead.priority)) return false;
+        }
+
+        if (query) {
+          const text = `${lead.name} ${lead.segment} ${lead.city} ${lead.address || ""}`.toLowerCase();
+          if (!text.includes(query.toLowerCase())) return false;
+        }
+
+        return true;
+      }),
+    [leads, filter, cityFilter, quickFilter, query, todayIsoStr]
   );
 
   const followUps = useMemo(
@@ -838,6 +980,20 @@ export function App() {
             <p>Veja os sinais mais promissores e decida o próximo movimento.</p>
           </div>
           <div className="topbar-actions">
+            {todayFollowUps.length > 0 && (
+              <button
+                type="button"
+                className="topbar-alert-badge"
+                onClick={() => {
+                  setQuickFilter("today-followup");
+                  document.getElementById("pipeline")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                title="Filtrar follow-ups agendados para hoje ou pendentes"
+              >
+                <Bell size={15} />
+                <span>{todayFollowUps.length} follow-up{todayFollowUps.length === 1 ? "" : "s"} para hoje</span>
+              </button>
+            )}
             <button className="secondary batch-button" onClick={() => setBatchOpen(true)}>
               <Layers size={16} />
               Importar em massa
@@ -1012,6 +1168,79 @@ export function App() {
               </button>
             </div>
           </div>
+
+          <div className="smart-chips-bar">
+            <div className="smart-chips-list">
+              <button
+                type="button"
+                className={`smart-chip ${quickFilter === "all" ? "active" : ""}`}
+                onClick={() => setQuickFilter("all")}
+              >
+                <span>Todos</span>
+                <span className="chip-count">{quickCounts.all}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-chip ${quickFilter === "no-site" ? "active" : ""}`}
+                onClick={() => setQuickFilter("no-site")}
+              >
+                <span>Sem Site</span>
+                <span className="chip-count highlight">{quickCounts.noSite}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-chip ${quickFilter === "with-whatsapp" ? "active" : ""}`}
+                onClick={() => setQuickFilter("with-whatsapp")}
+              >
+                <span>Com WhatsApp</span>
+                <span className="chip-count">{quickCounts.withWhatsapp}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-chip ${quickFilter === "today-followup" ? "active" : ""}`}
+                onClick={() => setQuickFilter("today-followup")}
+              >
+                <span>Follow-up Hoje</span>
+                <span className={`chip-count ${quickCounts.todayFollowup > 0 ? "warning" : ""}`}>{quickCounts.todayFollowup}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-chip ${quickFilter === "high-priority" ? "active" : ""}`}
+                onClick={() => setQuickFilter("high-priority")}
+              >
+                <span>Alta Prioridade</span>
+                <span className="chip-count">{quickCounts.highPriority}</span>
+              </button>
+            </div>
+
+            <div className="smart-chips-secondary">
+              {cities.length > 1 && (
+                <select
+                  className="city-filter-select"
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                >
+                  <option value="all">Todas as cidades ({cities.length})</option>
+                  {cities.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <a
+                href={api.exportCsvUrl()}
+                download="prospector-leads.csv"
+                className="btn-export-csv"
+                title="Exportar base de leads em CSV compatível com Excel"
+              >
+                <Download size={14} />
+                <span>Exportar CSV</span>
+              </a>
+            </div>
+          </div>
+
           <div className="table-wrap">
             <table>
               <thead>
@@ -1031,7 +1260,14 @@ export function App() {
                       <div className="company">
                         <span>{lead.name.slice(0, 2).toUpperCase()}</span>
                         <div>
-                          <strong>{lead.name}</strong>
+                          <strong>
+                            {lead.name}
+                            {lead.demoUrl && (
+                              <span className="demo-live-badge" style={{ marginLeft: "6px", fontSize: "9px", padding: "1px 5px" }}>
+                                Demo
+                              </span>
+                            )}
+                          </strong>
                           <small>
                             {lead.segment} · {lead.city} {lead.website ? "· com site" : "· sem site"}
                           </small>
@@ -1137,6 +1373,17 @@ export function App() {
           lead={selected}
           onClose={() => setSelected(null)}
           onChanged={changed}
+          onOpenProposal={(leadToPropose) => setProposalModalLead(leadToPropose)}
+        />
+      )}
+
+      {proposalModalLead && (
+        <ProposalModal
+          lead={proposalModalLead}
+          onClose={() => setProposalModalLead(null)}
+          onLoggedInteraction={(note) => {
+            api.interaction(proposalModalLead.id, note).then(changed).catch(() => {});
+          }}
         />
       )}
 

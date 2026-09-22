@@ -41,6 +41,7 @@ export interface Lead {
   sources: string[];
   interactions: Interaction[];
   demoBrief?: string;
+  demoUrl?: string;
   createdAt: string;
   updatedAt: string;
   analyzedAt?: string;
@@ -58,6 +59,7 @@ export interface ResolvedPlacePreview {
   phone?: string;
   hasWhatsapp?: boolean;
   whatsappUrl?: string;
+  demoUrl?: string;
   siteStatus: SiteStatus;
   digitalPresence: "unknown" | "low" | "medium" | "high";
   isDuplicate?: boolean;

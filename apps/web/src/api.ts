@@ -22,6 +22,7 @@ export const api = {
   notionStatus: () => request<{ configured: boolean; hasKey: boolean; hasDatabaseId: boolean }>("/api/notion/status"),
   batchAdd: (leads: Partial<Lead>[], autoAnalyze?: boolean) => request<{ created: number; leads: Lead[] }>("/api/leads/batch", { method: "POST", body: JSON.stringify({ leads, autoAnalyze }) }),
   interaction: (id: string, content: string) => request<Lead>(`/api/leads/${id}/interactions`, { method: "POST", body: JSON.stringify({ type: "note", content }) }),
-  stage: (id: string, stage: Stage) => request<Lead>(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify({ stage }) })
+  stage: (id: string, stage: Stage) => request<Lead>(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify({ stage }) }),
+  exportCsvUrl: () => `${apiBaseUrl}/api/leads/export/csv`
 };
 

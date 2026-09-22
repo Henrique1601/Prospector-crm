@@ -37,6 +37,67 @@ app.get("/api/leads", async (req, res) => {
   res.json(leads.sort((a, b) => b.score - a.score));
 });
 
+app.get("/api/leads/export/csv", async (_req, res) => {
+  const store = await readStore();
+  const headers = [
+    "Nome",
+    "Segmento",
+    "Cidade",
+    "UF",
+    "Endereço",
+    "Telefone",
+    "WhatsApp",
+    "Tem WhatsApp",
+    "Site",
+    "Status do Site",
+    "Estágio",
+    "Score",
+    "Prioridade",
+    "Próxima Ação",
+    "Próximo Follow-up",
+    "URL Demonstração",
+    "Criado Em"
+  ];
+
+  const escapeCsv = (val: unknown) => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(";") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = store.leads.map((l) => [
+    l.name,
+    l.segment,
+    l.city,
+    l.state,
+    l.address || "",
+    l.phone || "",
+    l.whatsappUrl || "",
+    l.hasWhatsapp ? "Sim" : "Não",
+    l.website || "",
+    l.siteStatus,
+    l.stage,
+    l.score,
+    l.priority,
+    l.nextAction || "",
+    l.nextFollowUp || "",
+    l.demoUrl || "",
+    l.createdAt ? new Date(l.createdAt).toLocaleDateString("pt-BR") : ""
+  ]);
+
+  const csvContent = "\uFEFF" + [
+    headers.map(escapeCsv).join(";"),
+    ...rows.map((row) => row.map(escapeCsv).join(";"))
+  ].join("\r\n");
+
+  res.setHeader("Content-Disposition", 'attachment; filename="prospector-leads.csv"');
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.send(csvContent);
+});
+
 app.get("/api/dashboard", async (_req, res) => {
   const { leads } = await readStore();
   const count = (stage: Lead["stage"]) => leads.filter((lead) => lead.stage === stage).length;
@@ -90,6 +151,7 @@ const leadInput = z.object({
   phone: z.string().optional(),
   whatsappUrl: z.string().optional(),
   hasWhatsapp: z.boolean().optional(),
+  demoUrl: z.string().optional(),
   siteStatus: z.enum(["unknown", "none", "weak", "good"]).optional(),
   digitalPresence: z.enum(["unknown", "low", "medium", "high"]).optional()
 });
@@ -127,6 +189,7 @@ app.post("/api/leads", async (req, res) => {
     nextAction: "Pesquisar presença digital",
     sources: input.mapsUrl ? [input.mapsUrl] : [],
     interactions: [],
+    demoUrl: input.demoUrl,
     createdAt: now,
     updatedAt: now
   };
@@ -175,6 +238,7 @@ app.post("/api/leads/batch", async (req, res) => {
       nextAction: "Pesquisar presença digital",
       sources: item.mapsUrl ? [item.mapsUrl] : [],
       interactions: [],
+      demoUrl: item.demoUrl,
       createdAt: now,
       updatedAt: now
     };

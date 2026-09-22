@@ -7,3 +7,4 @@ coverage/
 apps/api/data/store.json
 *.log
 .DS_Store
+*.tsbuildinfo
