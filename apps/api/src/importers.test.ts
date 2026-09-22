@@ -48,7 +48,8 @@ Oficina Mecânica Express;Oficina;Santos;SP;(13) 3222-1100;
 
     const lead2 = leads[1]!;
     expect(lead2.name).toBe("Oficina Mecânica Express");
-    expect(lead2.hasWhatsapp).toBe(false);
+    expect(lead2.hasWhatsapp).toBe(true);
+    expect(lead2.whatsappUrl).toBe("https://wa.me/551332221100");
     expect(lead2.siteStatus).toBe("none");
   });
 

@@ -4,7 +4,7 @@ import express from "express";
 import { z } from "zod";
 import { analyzeWithAi, demoBrief, localAnalysis } from "./ai.js";
 import { fetchNotionDatabase, parseCsvToLeads } from "./importers.js";
-import { resolveMultipleMapsLinks } from "./maps.js";
+import { classifyWebsite, detectWhatsappAndPhone, resolveMultipleMapsLinks } from "./maps.js";
 import { readStore, writeStore } from "./store.js";
 import { stages, type Lead } from "./types.js";
 
@@ -98,6 +98,15 @@ app.post("/api/leads", async (req, res) => {
   const input = leadInput.parse(req.body);
   const store = await readStore();
   const now = new Date().toISOString();
+
+  const phoneDetection = detectWhatsappAndPhone(input.phone, input.website);
+  const siteInfo = classifyWebsite(input.website);
+
+  const phone = input.phone || phoneDetection.phone;
+  const whatsappUrl = input.whatsappUrl || phoneDetection.whatsappUrl;
+  const hasWhatsapp = input.hasWhatsapp ?? phoneDetection.hasWhatsapp;
+  const website = siteInfo.isWhatsappOnly ? undefined : input.website;
+
   const lead: Lead = {
     id: crypto.randomUUID(),
     name: input.name,
@@ -106,15 +115,15 @@ app.post("/api/leads", async (req, res) => {
     state: input.state,
     address: input.address,
     mapsUrl: input.mapsUrl,
-    website: input.website,
-    phone: input.phone,
-    whatsappUrl: input.whatsappUrl,
-    hasWhatsapp: input.hasWhatsapp ?? Boolean(input.whatsappUrl),
+    website,
+    phone,
+    whatsappUrl,
+    hasWhatsapp,
     stage: "new",
     score: 0,
     priority: "low",
-    siteStatus: input.siteStatus || (input.website ? "good" : "unknown"),
-    digitalPresence: input.digitalPresence || (input.website ? "medium" : "unknown"),
+    siteStatus: input.siteStatus || (website ? "good" : "unknown"),
+    digitalPresence: input.digitalPresence || (website ? "medium" : "unknown"),
     nextAction: "Pesquisar presença digital",
     sources: input.mapsUrl ? [input.mapsUrl] : [],
     interactions: [],
@@ -138,6 +147,14 @@ app.post("/api/leads/batch", async (req, res) => {
 
   for (const item of input.leads) {
     const shouldAnalyze = input.autoAnalyze !== undefined ? input.autoAnalyze : (item.autoAnalyze !== undefined ? item.autoAnalyze : true);
+    const phoneDetection = detectWhatsappAndPhone(item.phone, item.website);
+    const siteInfo = classifyWebsite(item.website);
+
+    const phone = item.phone || phoneDetection.phone;
+    const whatsappUrl = item.whatsappUrl || phoneDetection.whatsappUrl;
+    const hasWhatsapp = item.hasWhatsapp ?? phoneDetection.hasWhatsapp;
+    const website = siteInfo.isWhatsappOnly ? undefined : item.website;
+
     let lead: Lead = {
       id: crypto.randomUUID(),
       name: item.name,
@@ -146,15 +163,15 @@ app.post("/api/leads/batch", async (req, res) => {
       state: item.state || "SP",
       address: item.address,
       mapsUrl: item.mapsUrl,
-      website: item.website,
-      phone: item.phone,
-      whatsappUrl: item.whatsappUrl,
-      hasWhatsapp: item.hasWhatsapp ?? Boolean(item.whatsappUrl),
+      website,
+      phone,
+      whatsappUrl,
+      hasWhatsapp,
       stage: "new",
       score: 0,
       priority: "low",
-      siteStatus: item.siteStatus || (item.website ? "good" : "unknown"),
-      digitalPresence: item.digitalPresence || (item.website ? "medium" : "unknown"),
+      siteStatus: item.siteStatus || (website ? "good" : "unknown"),
+      digitalPresence: item.digitalPresence || (website ? "medium" : "unknown"),
       nextAction: "Pesquisar presença digital",
       sources: item.mapsUrl ? [item.mapsUrl] : [],
       interactions: [],
@@ -181,11 +198,29 @@ app.post("/api/leads/batch", async (req, res) => {
   res.status(201).json({ created: createdLeads.length, leads: createdLeads });
 });
 
-
 app.patch("/api/leads/:id", async (req, res) => {
-  const store = await readStore(); const lead = store.leads.find((item) => item.id === req.params.id);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
   if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
-  Object.assign(lead, req.body, { id: lead.id, updatedAt: new Date().toISOString() }); await writeStore(store); res.json(lead);
+
+  const phoneToTest = req.body.phone !== undefined ? req.body.phone : lead.phone;
+  const websiteToTest = req.body.website !== undefined ? req.body.website : lead.website;
+  const phoneDetection = detectWhatsappAndPhone(phoneToTest, websiteToTest);
+
+  const updates = { ...req.body };
+  if (req.body.hasWhatsapp === undefined && phoneDetection.hasWhatsapp) {
+    updates.hasWhatsapp = true;
+  }
+  if (!req.body.whatsappUrl && phoneDetection.whatsappUrl) {
+    updates.whatsappUrl = phoneDetection.whatsappUrl;
+  }
+  if (!req.body.phone && phoneDetection.phone && !lead.phone) {
+    updates.phone = phoneDetection.phone;
+  }
+
+  Object.assign(lead, updates, { id: lead.id, updatedAt: new Date().toISOString() });
+  await writeStore(store);
+  res.json(lead);
 });
 
 app.post("/api/leads/:id/analyze", async (req, res) => {

@@ -597,7 +597,17 @@ function AddLead({
     e.preventDefault();
     setBusy(true);
     try {
-      const created = await api.add(form);
+      const cleanPhone = (form.phone || "").replace(/\D/g, "");
+      const cleanDigits = cleanPhone.startsWith("55") && cleanPhone.length >= 12 ? cleanPhone.slice(2) : cleanPhone;
+      const hasWaUrl = Boolean(form.whatsappUrl || (form.website || "").includes("wa.me") || (form.phone || "").includes("wa.me"));
+      const hasWhatsapp = form.hasWhatsapp || hasWaUrl || cleanDigits.length >= 10;
+      const whatsappUrl = form.whatsappUrl || (cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined);
+
+      const created = await api.add({
+        ...form,
+        hasWhatsapp,
+        whatsappUrl
+      });
       onCreated(created);
     } finally {
       setBusy(false);

@@ -55,7 +55,12 @@ Retorne um JSON com:
 
 export function localAnalysis(lead: Lead): Partial<Lead> {
   const score = 68 + ((lead.name.length + lead.segment.length) % 24);
-  const hasSite = Boolean(lead.website && lead.website.trim());
+  const hasSite = Boolean(
+    lead.website &&
+      lead.website.trim() &&
+      !lead.website.toLowerCase().includes("wa.me") &&
+      !lead.website.toLowerCase().includes("whatsapp.com")
+  );
 
   const portfolio = hasSite
     ? `Olá! Conheci a ${lead.name} e reparei no site de vocês. Pensei em algumas melhorias pontuais para modernizar o visual, acelerar o carregamento no celular e aumentar a conversão de novos clientes direto pelo WhatsApp.

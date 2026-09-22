@@ -12,44 +12,133 @@ export function cleanDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-export function detectWhatsappAndPhone(rawPhone?: string): {
+export function extractWhatsappFromUrl(url?: string): {
+  isWhatsapp: boolean;
+  phone?: string;
+  whatsappUrl?: string;
+} {
+  if (!url) return { isWhatsapp: false };
+  const trimmed = url.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (
+    lower.includes("wa.me") ||
+    lower.includes("api.whatsapp.com") ||
+    lower.includes("whatsapp.com/send") ||
+    lower.includes("whatsapp://send")
+  ) {
+    let digits = cleanDigits(trimmed);
+    if (digits.startsWith("55") && digits.length >= 12) {
+      digits = digits.slice(2);
+    }
+    if (digits.length === 11) {
+      const ddd = digits.slice(0, 2);
+      const part1 = digits.slice(2, 7);
+      const part2 = digits.slice(7);
+      return {
+        isWhatsapp: true,
+        phone: `(${ddd}) ${part1}-${part2}`,
+        whatsappUrl: `https://wa.me/55${digits}`
+      };
+    }
+    if (digits.length === 10) {
+      const ddd = digits.slice(0, 2);
+      const part1 = digits.slice(2, 6);
+      const part2 = digits.slice(6);
+      return {
+        isWhatsapp: true,
+        phone: `(${ddd}) ${part1}-${part2}`,
+        whatsappUrl: `https://wa.me/55${digits}`
+      };
+    }
+    if (digits.length > 0) {
+      return {
+        isWhatsapp: true,
+        phone: digits,
+        whatsappUrl: `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`
+      };
+    }
+    return {
+      isWhatsapp: true,
+      whatsappUrl: trimmed
+    };
+  }
+
+  return { isWhatsapp: false };
+}
+
+export function detectWhatsappAndPhone(
+  rawPhone?: string,
+  possibleWebsite?: string
+): {
   phone?: string;
   hasWhatsapp: boolean;
   whatsappUrl?: string;
 } {
-  if (!rawPhone) return { hasWhatsapp: false };
+  // 1. Check if rawPhone is a WhatsApp link
+  const fromPhoneUrl = extractWhatsappFromUrl(rawPhone);
+  if (fromPhoneUrl.isWhatsapp && fromPhoneUrl.whatsappUrl) {
+    return {
+      phone: fromPhoneUrl.phone || rawPhone,
+      hasWhatsapp: true,
+      whatsappUrl: fromPhoneUrl.whatsappUrl
+    };
+  }
+
+  // 2. Check if website is a WhatsApp link
+  const fromWebUrl = extractWhatsappFromUrl(possibleWebsite);
+
+  if (!rawPhone || !rawPhone.trim()) {
+    if (fromWebUrl.isWhatsapp && fromWebUrl.whatsappUrl) {
+      return {
+        phone: fromWebUrl.phone,
+        hasWhatsapp: true,
+        whatsappUrl: fromWebUrl.whatsappUrl
+      };
+    }
+    return { hasWhatsapp: false };
+  }
 
   let digits = cleanDigits(rawPhone);
   if (digits.startsWith("55") && digits.length >= 12) {
     digits = digits.slice(2);
   }
 
-  // Brazilian mobile pattern: DDD (2 digits: 11-99) + 9 digits starting with 9 = 11 digits
+  // 3. Brazilian mobile (11 digits: DDD + 9xxxxxxxx)
   if (digits.length === 11 && /^[1-9]{2}9\d{8}$/.test(digits)) {
     const ddd = digits.slice(0, 2);
     const part1 = digits.slice(2, 7);
     const part2 = digits.slice(7);
-    const formatted = `(${ddd}) ${part1}-${part2}`;
-    const waUrl = `https://wa.me/55${digits}`;
     return {
-      phone: formatted,
+      phone: `(${ddd}) ${part1}-${part2}`,
       hasWhatsapp: true,
-      whatsappUrl: waUrl
+      whatsappUrl: `https://wa.me/55${digits}`
     };
   }
 
-  // Brazilian landline: DDD (2 digits) + 8 digits starting with 2, 3, 4, 5 = 10 digits
-  if (digits.length === 10 && /^[1-9]{2}[2-5]\d{7}$/.test(digits)) {
+  // 4. Brazilian landline or commercial phone (10 digits: DDD + xxxxxxxx)
+  // In Google Maps, companies rarely label numbers as WhatsApp. In Brazil, businesses
+  // frequently use WhatsApp Business on landlines. We enable WhatsApp support so Henrique can contact with 1 click.
+  if (digits.length === 10 && /^[1-9]{2}\d{8}$/.test(digits)) {
     const ddd = digits.slice(0, 2);
     const part1 = digits.slice(2, 6);
     const part2 = digits.slice(6);
     return {
       phone: `(${ddd}) ${part1}-${part2}`,
-      hasWhatsapp: false
+      hasWhatsapp: true,
+      whatsappUrl: `https://wa.me/55${digits}`
     };
   }
 
-  // Other formats
+  // 5. Fallback for other valid digit sequences >= 8 digits
+  if (digits.length >= 8) {
+    return {
+      phone: rawPhone.trim(),
+      hasWhatsapp: true,
+      whatsappUrl: `https://wa.me/55${digits}`
+    };
+  }
+
   return {
     phone: rawPhone.trim(),
     hasWhatsapp: false
@@ -60,6 +149,7 @@ export function classifyWebsite(website?: string): {
   siteStatus: SiteStatus;
   digitalPresence: "unknown" | "low" | "medium" | "high";
   website?: string;
+  isWhatsappOnly?: boolean;
 } {
   if (!website || !website.trim()) {
     return {
@@ -72,12 +162,25 @@ export function classifyWebsite(website?: string): {
   const clean = website.trim();
   const lower = clean.toLowerCase();
 
+  // Direct WhatsApp link placed in website field
+  if (
+    lower.includes("wa.me") ||
+    lower.includes("api.whatsapp.com") ||
+    lower.includes("chat.whatsapp.com")
+  ) {
+    return {
+      siteStatus: "none",
+      digitalPresence: "low",
+      website: clean,
+      isWhatsappOnly: true
+    };
+  }
+
   // Social profile only
   if (
     lower.includes("instagram.com") ||
     lower.includes("facebook.com") ||
-    lower.includes("linktr.ee") ||
-    lower.includes("wa.me")
+    lower.includes("linktr.ee")
   ) {
     return {
       siteStatus: "weak",
@@ -244,7 +347,10 @@ export async function fetchFromGooglePlacesApi(
     if (!place) return null;
 
     const name = place.displayName?.text || query;
-    const phoneInfo = detectWhatsappAndPhone(place.nationalPhoneNumber || place.internationalPhoneNumber);
+    const phoneInfo = detectWhatsappAndPhone(
+      place.nationalPhoneNumber || place.internationalPhoneNumber,
+      place.websiteUri
+    );
     const siteInfo = classifyWebsite(place.websiteUri);
     const segment = place.primaryTypeDisplayName?.text || "Comércio local";
 
@@ -266,7 +372,7 @@ export async function fetchFromGooglePlacesApi(
       state,
       address: place.formattedAddress,
       mapsUrl: place.googleMapsUri,
-      website: siteInfo.website,
+      website: siteInfo.isWhatsappOnly ? undefined : siteInfo.website,
       phone: phoneInfo.phone,
       hasWhatsapp: phoneInfo.hasWhatsapp,
       whatsappUrl: phoneInfo.whatsappUrl,
@@ -343,9 +449,9 @@ export async function resolveMapsLink(
 
   const name = placeData?.name || fallbackName;
   const segment = placeData?.segment || inferSegmentFromName(name);
-  const website = placeData?.website;
-  const siteInfo = classifyWebsite(website);
-  const phoneInfo = detectWhatsappAndPhone(placeData?.phone);
+  const rawWebsite = placeData?.website;
+  const siteInfo = classifyWebsite(rawWebsite);
+  const phoneInfo = detectWhatsappAndPhone(placeData?.phone, rawWebsite);
 
   // 4. Duplicate Detection
   const normName = name.toLowerCase().trim();
@@ -365,7 +471,7 @@ export async function resolveMapsLink(
     state,
     address,
     mapsUrl: placeData?.mapsUrl || canonicalUrl,
-    website: siteInfo.website,
+    website: siteInfo.isWhatsappOnly ? undefined : siteInfo.website,
     phone: phoneInfo.phone,
     hasWhatsapp: phoneInfo.hasWhatsapp,
     whatsappUrl: phoneInfo.whatsappUrl,
