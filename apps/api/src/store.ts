@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 import { seedLeads } from "./seed.js";
 import type { Store } from "./types.js";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data");
+// Vercel Functions can only write to /tmp. This keeps the deployed MVP usable,
+// but the data is intentionally reported as temporary by /api/health.
+const root = process.env.VERCEL
+  ? path.join(process.env.TMPDIR || "/tmp", "prospector-crm")
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data");
 const file = path.join(root, "store.json");
 
 export async function readStore(): Promise<Store> {

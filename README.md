@@ -33,3 +33,12 @@ O CRM continua sendo a fonte de verdade dos leads. O Obsidian guarda estratégia
 `Novo → Analisado → Contatado → Respondeu → Reunião → Proposta → Fechado/Perdido`
 
 O agente prepara pesquisa, score, abordagem e demonstração. O contato com a empresa continua dependendo da revisão do usuário.
+
+## Publicar na Vercel
+
+O monorepo usa dois projetos:
+
+- `web`: Root Directory `apps/web`, Framework Preset `Vite` e variável `VITE_API_URL` apontando para a URL pública da API.
+- `api-prospector`: Root Directory `apps/api`. O arquivo `index.ts` exporta o Express como Vercel Function; a pasta `public` existe apenas para manter compatibilidade com a configuração atual de Output Directory.
+
+Na Vercel, o armazenamento da API usa `/tmp` e portanto é temporário: pode ser apagado entre execuções ou novos deploys. Antes de usar o CRM como fonte de verdade em produção, conecte um banco persistente e mantenha a URL de conexão somente nas variáveis de ambiente da Vercel.

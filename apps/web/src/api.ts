@@ -1,7 +1,10 @@
 import type { DashboardData, Lead, Stage } from "./types";
 
+const productionApiUrl = "https://api-prospector-henrique1601s-projects.vercel.app";
+const apiBaseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : productionApiUrl)).replace(/\/$/, "");
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+  const response = await fetch(`${apiBaseUrl}${url}`, { headers: { "Content-Type": "application/json" }, ...options });
   if (!response.ok) throw new Error((await response.json()).message || "Não foi possível concluir a ação");
   return response.json() as Promise<T>;
 }

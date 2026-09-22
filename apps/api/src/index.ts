@@ -10,7 +10,12 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, ai: Boolean(process.env.AISA_API_KEY), mode: process.env.AISA_API_KEY ? "aisa" : "local" }));
+app.get("/api/health", (_req, res) => res.json({
+  ok: true,
+  ai: Boolean(process.env.AISA_API_KEY),
+  mode: process.env.AISA_API_KEY ? "aisa" : "local",
+  storage: process.env.VERCEL ? "temporary" : "local-file"
+}));
 
 app.get("/api/leads", async (req, res) => {
   const store = await readStore();
@@ -66,4 +71,8 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 });
 
 const port = Number(process.env.PORT || 3333);
-app.listen(port, () => console.log(`Prospector API em http://localhost:${port}`));
+if (!process.env.VERCEL) {
+  app.listen(port, () => console.log(`Prospector API em http://localhost:${port}`));
+}
+
+export default app;
