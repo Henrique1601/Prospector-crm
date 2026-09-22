@@ -20,6 +20,8 @@ export interface Lead {
   mapsUrl?: string;
   website?: string;
   phone?: string;
+  whatsappUrl?: string;
+  hasWhatsapp?: boolean;
   stage: Stage;
   score: number;
   priority: Priority;
@@ -38,4 +40,24 @@ export interface Lead {
   analyzedAt?: string;
 }
 
+export interface ResolvedPlacePreview {
+  sourceUrl: string;
+  name: string;
+  segment: string;
+  city: string;
+  state: string;
+  address?: string;
+  mapsUrl: string;
+  website?: string;
+  phone?: string;
+  hasWhatsapp?: boolean;
+  whatsappUrl?: string;
+  siteStatus: SiteStatus;
+  digitalPresence: "unknown" | "low" | "medium" | "high";
+  isDuplicate?: boolean;
+  duplicateReason?: string;
+  error?: string;
+}
+
 export interface Store { leads: Lead[] }
+
