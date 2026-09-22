@@ -1,6 +1,6 @@
 import type { DashboardData, Lead, Stage } from "./types";
 
-const productionApiUrl = "https://api-prospector-henrique1601s-projects.vercel.app";
+const productionApiUrl = "https://api-prospector-delta.vercel.app";
 const apiBaseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : productionApiUrl)).replace(/\/$/, "");
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
