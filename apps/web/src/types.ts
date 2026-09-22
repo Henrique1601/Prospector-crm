@@ -5,7 +5,13 @@ export interface Lead {
   website?: string; phone?: string; whatsappUrl?: string; hasWhatsapp?: boolean; stage: Stage; score: number;
   priority: "low" | "medium" | "high" | "urgent";
   siteStatus: "unknown" | "none" | "weak" | "good"; digitalPresence: string; opportunity?: string; reason?: string;
-  suggestedMessage?: string; nextAction?: string; nextFollowUp?: string; sources: string[]; interactions: Interaction[];
+  suggestedMessage?: string;
+  suggestedMessages?: {
+    portfolio?: string;
+    short?: string;
+    direct?: string;
+  };
+  nextAction?: string; nextFollowUp?: string; sources: string[]; interactions: Interaction[];
   demoBrief?: string; createdAt: string; updatedAt: string; analyzedAt?: string;
 }
 export interface ResolvedPlacePreview {

@@ -30,7 +30,13 @@ export interface Lead {
   opportunity?: string;
   reason?: string;
   suggestedMessage?: string;
+  suggestedMessages?: {
+    portfolio?: string;
+    short?: string;
+    direct?: string;
+  };
   nextAction?: string;
+
   nextFollowUp?: string;
   sources: string[];
   interactions: Interaction[];

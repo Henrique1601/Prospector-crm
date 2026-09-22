@@ -9,6 +9,8 @@ import {
   Check,
   ChevronRight,
   CircleGauge,
+  Copy,
+  Edit3,
   ExternalLink,
   Globe,
   Layers,
@@ -20,6 +22,7 @@ import {
   MessageSquareText,
   Phone,
   Plus,
+  Save,
   Search,
   Sparkles,
   Target,
@@ -90,6 +93,33 @@ function LeadDrawer({
 }) {
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedApproach, setSelectedApproach] = useState<"portfolio" | "short" | "direct">("portfolio");
+
+  const [editForm, setEditForm] = useState({
+    name: lead.name,
+    segment: lead.segment,
+    city: lead.city,
+    state: lead.state,
+    website: lead.website || "",
+    phone: lead.phone || "",
+    address: lead.address || ""
+  });
+
+  useEffect(() => {
+    setEditForm({
+      name: lead.name,
+      segment: lead.segment,
+      city: lead.city,
+      state: lead.state,
+      website: lead.website || "",
+      phone: lead.phone || "",
+      address: lead.address || ""
+    });
+    setIsEditing(false);
+  }, [lead.id, lead.updatedAt]);
+
   const act = async (name: string, fn: () => Promise<Lead>) => {
     setBusy(name);
     try {
@@ -98,8 +128,49 @@ function LeadDrawer({
       setBusy("");
     }
   };
+
+  const currentMessage = useMemo(() => {
+    if (lead.suggestedMessages) {
+      if (selectedApproach === "portfolio" && lead.suggestedMessages.portfolio) return lead.suggestedMessages.portfolio;
+      if (selectedApproach === "short" && lead.suggestedMessages.short) return lead.suggestedMessages.short;
+      if (selectedApproach === "direct" && lead.suggestedMessages.direct) return lead.suggestedMessages.direct;
+    }
+    return lead.suggestedMessage || "";
+  }, [lead.suggestedMessages, lead.suggestedMessage, selectedApproach]);
+
   const copyMessage = async () => {
-    if (lead.suggestedMessage) await navigator.clipboard.writeText(lead.suggestedMessage);
+    if (currentMessage) {
+      await navigator.clipboard.writeText(currentMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const cleanPhone = (lead.phone || "").replace(/\D/g, "");
+  const waDirectUrl = cleanPhone
+    ? `https://wa.me/55${cleanPhone}${currentMessage ? `?text=${encodeURIComponent(currentMessage)}` : ""}`
+    : lead.whatsappUrl;
+
+  const handleSaveLead = async () => {
+    const rawPhoneDigits = (editForm.phone || "").replace(/\D/g, "");
+    const hasWhatsapp = rawPhoneDigits.length >= 10;
+    const whatsappUrl = hasWhatsapp ? `https://wa.me/55${rawPhoneDigits}` : undefined;
+
+    await act("save-lead", async () => {
+      const updated = await api.update(lead.id, {
+        name: editForm.name.trim(),
+        segment: editForm.segment.trim(),
+        city: editForm.city.trim(),
+        state: editForm.state.trim().toUpperCase() || "SP",
+        website: editForm.website.trim() || undefined,
+        phone: editForm.phone.trim() || undefined,
+        address: editForm.address.trim() || undefined,
+        hasWhatsapp,
+        whatsappUrl
+      });
+      setIsEditing(false);
+      return updated;
+    });
   };
 
   return (
@@ -114,10 +185,101 @@ function LeadDrawer({
               {lead.segment} · {lead.city}, {lead.state}
             </p>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Fechar">
-            <X />
-          </button>
+          <div className="drawer-header-actions">
+            <button
+              className={`drawer-action-toggle ${isEditing ? "active" : ""}`}
+              onClick={() => setIsEditing(!isEditing)}
+              title={isEditing ? "Cancelar edição" : "Editar informações do lead"}
+            >
+              <Edit3 size={14} />
+              <span>{isEditing ? "Cancelar" : "Editar"}</span>
+            </button>
+            <button className="icon-button" onClick={onClose} aria-label="Fechar">
+              <X />
+            </button>
+          </div>
         </header>
+
+        {isEditing && (
+          <div className="drawer-edit-card">
+            <h4>Editar dados da empresa</h4>
+            <div className="field">
+              <span>Nome da Empresa</span>
+              <input
+                value={editForm.name}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome da empresa"
+              />
+            </div>
+            <div className="drawer-edit-row">
+              <div className="field">
+                <span>Segmento</span>
+                <input
+                  value={editForm.segment}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, segment: e.target.value }))}
+                  placeholder="Ex: Restaurante"
+                />
+              </div>
+              <div className="field">
+                <span>Cidade / UF</span>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <input
+                    value={editForm.city}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, city: e.target.value }))}
+                    placeholder="Cidade"
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    value={editForm.state}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
+                    placeholder="UF"
+                    style={{ width: "45px", textTransform: "uppercase" }}
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="drawer-edit-row">
+              <div className="field">
+                <span>Telefone / WhatsApp</span>
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(13) 99999-9999"
+                />
+              </div>
+              <div className="field">
+                <span>Site</span>
+                <input
+                  value={editForm.website}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, website: e.target.value }))}
+                  placeholder="exemplo.com.br"
+                />
+              </div>
+            </div>
+            <div className="field">
+              <span>Endereço</span>
+              <input
+                value={editForm.address}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
+                placeholder="Rua, número, bairro..."
+              />
+            </div>
+            <div className="drawer-edit-actions">
+              <button className="secondary" onClick={() => setIsEditing(false)}>
+                Cancelar
+              </button>
+              <button
+                className="primary"
+                disabled={busy === "save-lead" || !editForm.name.trim()}
+                onClick={handleSaveLead}
+              >
+                <Save size={14} />
+                {busy === "save-lead" ? "Salvando…" : "Salvar alterações"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="drawer-score">
           <Score value={lead.score} />
@@ -143,13 +305,19 @@ function LeadDrawer({
               className="whatsapp-action-btn"
               title="Abrir WhatsApp para contato manual"
             >
-              <MessageCircle size={15} /> Conversar no WhatsApp ({lead.phone})
+              <MessageCircle size={15} /> WhatsApp ({lead.phone})
             </a>
           ) : lead.phone ? (
-            <span className="phone-badge">
+            <a
+              href={`tel:${lead.phone.replace(/\D/g, "")}`}
+              className="phone-badge"
+              title="Ligar para a empresa"
+            >
               <Phone size={13} /> {lead.phone}
-            </span>
-          ) : null}
+            </a>
+          ) : (
+            <span className="no-phone-badge">Sem telefone</span>
+          )}
 
           {lead.website ? (
             <a
@@ -163,6 +331,49 @@ function LeadDrawer({
           ) : (
             <span className="no-site-badge">Sem site próprio</span>
           )}
+
+          {lead.address && (
+            <span className="address-badge" title={lead.address}>
+              <MapPin size={12} /> {lead.address}
+            </span>
+          )}
+        </div>
+
+        <div className="drawer-followup-card">
+          <div className="followup-card-header">
+            <span className="followup-card-title">
+              <CalendarClock size={15} />
+              <strong>Próximo Follow-up</strong>
+            </span>
+            {lead.nextFollowUp && (
+              <button
+                className="text-button"
+                onClick={() => act("clear-followup", () => api.update(lead.id, { nextFollowUp: undefined }))}
+              >
+                Limpar data
+              </button>
+            )}
+          </div>
+          <div className="followup-card-body">
+            <input
+              type="date"
+              className="followup-date-input"
+              value={lead.nextFollowUp ? lead.nextFollowUp.slice(0, 10) : ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                act("followup", () => api.update(lead.id, { nextFollowUp: val || undefined }));
+              }}
+            />
+            <small className="followup-status-text">
+              {lead.nextFollowUp
+                ? `Agendado para ${new Date(lead.nextFollowUp + "T12:00:00").toLocaleDateString("pt-BR", {
+                    weekday: "short",
+                    day: "2-digit",
+                    month: "long"
+                  })}`
+                : "Nenhum follow-up agendado no radar."}
+            </small>
+          </div>
         </div>
 
         <section>
@@ -197,15 +408,68 @@ function LeadDrawer({
         <section>
           <div className="section-title">
             <h3>Abordagem sugerida</h3>
-            {lead.suggestedMessage && (
-              <button className="text-button" onClick={copyMessage}>
-                Copiar
+            {currentMessage && (
+              <button className="copy-action-btn" onClick={copyMessage}>
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copied ? "Copiado!" : "Copiar"}</span>
               </button>
             )}
           </div>
+
+          {lead.suggestedMessages && (
+            <div className="approach-tabs" role="tablist" aria-label="Variações de abordagem">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selectedApproach === "portfolio"}
+                className={`approach-tab ${selectedApproach === "portfolio" ? "active" : ""}`}
+                onClick={() => setSelectedApproach("portfolio")}
+              >
+                Completa / Portfólio
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selectedApproach === "short"}
+                className={`approach-tab ${selectedApproach === "short" ? "active" : ""}`}
+                onClick={() => setSelectedApproach("short")}
+              >
+                Curta WhatsApp
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selectedApproach === "direct"}
+                className={`approach-tab ${selectedApproach === "direct" ? "active" : ""}`}
+                onClick={() => setSelectedApproach("direct")}
+              >
+                Demonstração
+              </button>
+            </div>
+          )}
+
           <div className="message-box">
-            {lead.suggestedMessage || "A abordagem aparecerá aqui depois da análise."}
+            {currentMessage || "A abordagem personalizada aparecerá aqui depois da análise."}
           </div>
+
+          {currentMessage && waDirectUrl && (
+            <a
+              href={waDirectUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="whatsapp-send-ready-btn"
+              onClick={() => {
+                api.interaction(lead.id, `Iniciou contato no WhatsApp com abordagem: ${
+                  selectedApproach === "portfolio" ? "Completa / Portfólio" : selectedApproach === "short" ? "Curta WhatsApp" : "Demonstração"
+                }`).then(onChanged).catch(() => {});
+              }}
+            >
+              <MessageCircle size={15} />
+              <span>Conversar no WhatsApp com texto pronto</span>
+              <ExternalLink size={12} />
+            </a>
+          )}
+
           <label className="field">
             <span>Estágio do relacionamento</span>
             <select
@@ -759,7 +1023,7 @@ export function App() {
                         <div>
                           <strong>{lead.name}</strong>
                           <small>
-                            {lead.segment} · {lead.city}
+                            {lead.segment} · {lead.city} {lead.website ? "· com site" : "· sem site"}
                           </small>
                         </div>
                       </div>

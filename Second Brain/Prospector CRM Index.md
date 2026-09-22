@@ -25,6 +25,7 @@ tags:
 - [[Architecture Map]]
 - [[Data Model]]
 - [[Agent And AI Guardrails]]
+- [[Agent Skills and Capabilities]]
 - [[Decision Log]]
 - [[Research Inbox]]
 
