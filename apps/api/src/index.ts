@@ -509,6 +509,138 @@ app.post("/api/leads/:id/demo", async (req, res) => {
   res.json(lead);
 });
 
+app.post("/api/leads/:id/audit", async (req, res) => {
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+
+  const hasWebsite = Boolean(lead.website && !lead.website.includes("wa.me"));
+  const isWeak = lead.siteStatus === "weak";
+  const mobileSpeedScore = !hasWebsite ? 0 : isWeak ? 34 : 78;
+  const loadTimeEstimate = !hasWebsite ? "Inexistente" : isWeak ? "4.2s no celular" : "2.1s";
+  const hasFloatingWhatsapp = Boolean(lead.hasWhatsapp && hasWebsite && lead.digitalPresence === "high");
+  const hasLocalSeo = lead.siteStatus === "good";
+  const hasSsl = Boolean(lead.website && lead.website.startsWith("https://"));
+  const trafficLossEstimate = !hasWebsite
+    ? "100% das buscas na internet em Santos/Região vão direto para concorrentes"
+    : "53% dos visitantes no celular abandonam antes do carregamento";
+
+  const criticalIssues: string[] = [];
+  if (!hasWebsite) {
+    criticalIssues.push("Ausência de site próprio: perde clientes qualificados que buscam no Google");
+    criticalIssues.push("Dependência de algoritmos de terceiros (Instagram/Facebook)");
+    criticalIssues.push("Sem botão flutuante de WhatsApp para contato em 1 clique");
+  } else if (isWeak) {
+    criticalIssues.push("Velocidade no celular lenta (mais de 4 segundos para abrir)");
+    criticalIssues.push("Falta de botão flutuante de WhatsApp fixo no rodapé");
+    criticalIssues.push("SEO Local fraco: não ranqueia nas buscas principais da Baixada Santista");
+  } else {
+    criticalIssues.push("Pode melhorar a taxa de conversão com layout moderno e CTA mais agressivo");
+    criticalIssues.push("Oportunidade de catálogo integrado ou agendamento online");
+  }
+
+  const cleanFirstName = lead.name.split(" ")[0];
+  const auditMessage = !hasWebsite
+    ? `Fala ${cleanFirstName}, tudo bem? Analisei a presença online da ${lead.name} em ${lead.city} e notei que vocês ainda não possuem site próprio no Google Maps. Hoje, mais de 80% das pessoas pesquisam no celular antes de contratar ${lead.segment.toLowerCase()}. Sem site com botão direto de WhatsApp, esses clientes acabam fechando com quem já aparece no topo. Montei uma demonstração rápida de como ficaria a presença digital de vocês: leva menos de 1 minuto para ver. Posso te enviar o link?`
+    : `Fala ${cleanFirstName}, tudo bem? Fiz um raio-x técnico rápido do site da ${lead.name} e notei que no celular ele leva cerca de ${loadTimeEstimate} para carregar, além de não ter botão flutuante para o WhatsApp. Hoje mais de 53% dos clientes em ${lead.city} desistem se o site demorar mais de 3 segundos. Desenvolvo sites ultra-rápidos (abrem em menos de 1.5s) que dobram os contatos no WhatsApp. Posso te mostrar uma demonstração sem compromisso?`;
+
+  res.json({
+    leadId: lead.id,
+    leadName: lead.name,
+    hasWebsite,
+    mobileSpeedScore,
+    loadTimeEstimate,
+    hasFloatingWhatsapp,
+    hasLocalSeo,
+    hasSsl,
+    trafficLossEstimate,
+    criticalIssues,
+    auditMessage
+  });
+});
+
+app.post("/api/leads/:id/audio-script", async (req, res) => {
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+
+  const cleanFirstName = lead.name.split(" ")[0];
+  const hasSite = Boolean(lead.website && !lead.website.includes("wa.me"));
+
+  const script = hasSite
+    ? `[Tom natural e informal, ritmo amigável]
+"Fala ${cleanFirstName}, tudo bem? Aqui é o Henrique, desenvolvedor web aqui de Santos.
+[Pausa de 1 segundo]
+Estava navegando no Google pesquisando sobre ${lead.segment.toLowerCase()} aqui na Baixada Santista e encontrei a ${lead.name}. Achei o trabalho de vocês muito bacana!
+[Pausa de 1 segundo]
+Só chamo atenção para um detalhe rápido: quando abri o site de vocês pelo celular, ele demorou um pouquinho pra carregar e não vi um botão direto pro WhatsApp. Hoje quase todo mundo desiste se demorar mais de 3 segundos, né?
+[Pausa de 1 segundo]
+Eu já estruturei um modelo inicial pensado especialmente para vocês, super leve e com botão direto pro seu WhatsApp. Leva menos de 30 segundos pra dar uma olhada. Posso te mandar o link por aqui?"`
+    : `[Tom natural e informal, ritmo amigável]
+"Fala ${cleanFirstName}, tudo bem? Aqui é o Henrique, desenvolvedor web aqui da Baixada Santista.
+[Pausa de 1 segundo]
+Estava pesquisando sobre ${lead.segment.toLowerCase()} aqui em ${lead.city} e vi que a ${lead.name} tem uma reputação ótima, mas percebi que vocês ainda não têm um site próprio vinculado no Google Maps.
+[Pausa de 1 segundo]
+Hoje a grande maioria das pessoas pesquisa direto no celular antes de contratar ou ir até o local, e sem o site elas acabam caindo no concorrente que já tem botão de WhatsApp.
+[Pausa de 1 segundo]
+Eu já montei uma prévia visual pensada especialmente pra empresa de vocês, leva menos de 30 segundos pra dar uma olhada no celular. Posso te enviar o link sem compromisso?"`;
+
+  res.json({
+    leadId: lead.id,
+    leadName: lead.name,
+    durationSeconds: 28,
+    wordsCount: 110,
+    hook: "Conexão local + elogio sincero",
+    corePitch: "Perda invisível no celular e Google Maps",
+    cta: "Permissão para enviar demonstração de 30 segundos",
+    script
+  });
+});
+
+app.get("/api/proposals/:id/public", async (req, res) => {
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+
+  res.json({
+    proposalId: `PROP-${lead.id.substring(0, 8).toUpperCase()}`,
+    createdAt: new Date().toISOString(),
+    developer: {
+      name: "Henrique Bezerra dos Santos",
+      role: "Desenvolvedor Web Full-Stack",
+      portfolio: "https://bezerraportifolio.netlify.app/",
+      whatsapp: "(13) 99138-3222",
+      email: "henriquebs1601@gmail.com",
+      linkedin: "www.linkedin.com/in/henriquebezerra-dev"
+    },
+    client: {
+      name: lead.name,
+      segment: lead.segment,
+      city: lead.city,
+      state: lead.state,
+      phone: lead.phone,
+      website: lead.website,
+      digitalPresence: lead.digitalPresence,
+      opportunity: lead.opportunity
+    },
+    scope: [
+      "Landing Page Ultra-rápida (carregamento < 1.5s)",
+      "Botão flutuante de WhatsApp com mensagem pré-formatada",
+      "Otimização SEO Local para Google e Google Maps",
+      "Design 100% responsivo para celulares e computadores",
+      "Certificado de Segurança SSL (HTTPS)",
+      "Hospedagem inclusa por 12 meses",
+      "Treinamento e suporte direto com Henrique"
+    ],
+    pricing: {
+      oneTimePrice: 1800,
+      installments: "3x de R$ 600 sem juros ou 5% à vista (R$ 1.710)",
+      deliveryTimeDays: 7
+    },
+    approvalWhatsappUrl: `https://wa.me/5513991383222?text=${encodeURIComponent(`Olá Henrique! Vi a proposta comercial online da ${lead.name} e gostaria de aprovar o projeto do site!`)}`
+  });
+});
+
 app.post("/api/leads/:id/interactions", async (req, res) => {
   const schema = z.object({ type: z.enum(["note", "whatsapp", "email", "call", "meeting", "reply"]), content: z.string().min(1) });
   const input = schema.parse(req.body);

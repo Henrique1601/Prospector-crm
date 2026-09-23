@@ -36,5 +36,8 @@ export const api = {
   batchAdd: (leads: Partial<Lead>[], autoAnalyze?: boolean) => request<{ created: number; leads: Lead[] }>("/api/leads/batch", { method: "POST", body: JSON.stringify({ leads, autoAnalyze }) }),
   interaction: (id: string, content: string) => request<Lead>(`/api/leads/${id}/interactions`, { method: "POST", body: JSON.stringify({ type: "note", content }) }),
   stage: (id: string, stage: Stage) => request<Lead>(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify({ stage }) }),
+  auditLead: (id: string) => request<import("./types").LeadAuditResult>(`/api/leads/${id}/audit`, { method: "POST" }),
+  getAudioScript: (id: string) => request<import("./types").AudioScriptResult>(`/api/leads/${id}/audio-script`, { method: "POST" }),
+  getPublicProposal: (id: string) => request<import("./types").PublicProposalData>(`/api/proposals/${id}/public`),
   exportCsvUrl: () => `${apiBaseUrl}/api/leads/export/csv`
 };

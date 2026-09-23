@@ -117,3 +117,58 @@ export interface ConversionAnalytics {
   cities: CityConversionStats[];
   segments: SegmentConversionStats[];
 }
+
+export interface LeadAuditResult {
+  leadId: string;
+  leadName: string;
+  hasWebsite: boolean;
+  mobileSpeedScore: number;
+  loadTimeEstimate: string;
+  hasFloatingWhatsapp: boolean;
+  hasLocalSeo: boolean;
+  hasSsl: boolean;
+  trafficLossEstimate: string;
+  criticalIssues: string[];
+  auditMessage: string;
+}
+
+export interface AudioScriptResult {
+  leadId: string;
+  leadName: string;
+  durationSeconds: number;
+  wordsCount: number;
+  hook: string;
+  corePitch: string;
+  cta: string;
+  script: string;
+}
+
+export interface PublicProposalData {
+  proposalId: string;
+  createdAt: string;
+  developer: {
+    name: string;
+    role: string;
+    portfolio: string;
+    whatsapp: string;
+    email: string;
+    linkedin: string;
+  };
+  client: {
+    name: string;
+    segment: string;
+    city: string;
+    state: string;
+    phone?: string;
+    website?: string;
+    digitalPresence: string;
+    opportunity?: string;
+  };
+  scope: string[];
+  pricing: {
+    oneTimePrice: number;
+    installments: string;
+    deliveryTimeDays: number;
+  };
+  approvalWhatsappUrl: string;
+}

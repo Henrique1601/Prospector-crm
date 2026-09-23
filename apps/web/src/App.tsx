@@ -7,7 +7,9 @@ import {
   BookOpen,
   Bot,
   BriefcaseBusiness,
+  Calculator,
   CalendarClock,
+  CalendarPlus,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -31,12 +33,15 @@ import {
   MapPin,
   MessageCircle,
   MessageSquareText,
+  Mic,
+  MicOff,
   Phone,
   Plug,
   Plus,
   Save,
   Search,
   Send,
+  Share2,
   SlidersHorizontal,
   Sparkles,
   Table as TableIcon,
@@ -55,6 +60,11 @@ import { WebhookDocModal } from "./WebhookDocModal";
 import { AnalyticsModal } from "./AnalyticsModal";
 import { CommandPalette } from "./CommandPalette";
 import { KanbanBoard } from "./KanbanBoard";
+import { RoiCalculatorModal } from "./RoiCalculatorModal";
+import { LeadAuditModal } from "./LeadAuditModal";
+import { ColdAudioScriptModal } from "./ColdAudioScriptModal";
+import { BeforeAfterCardModal } from "./BeforeAfterCardModal";
+import { PublicProposalView } from "./PublicProposalView";
 import { triggerConfetti } from "./Confetti";
 import type { DashboardData, Lead, Stage } from "./types";
 
@@ -114,20 +124,76 @@ function LeadDrawer({
   onClose,
   onChanged,
   onOpenProposal,
-  onOpenPlaybook
+  onOpenPlaybook,
+  onOpenRoi,
+  onOpenAudit,
+  onOpenAudio,
+  onOpenBeforeAfter,
+  onOpenPublicProposal
 }: {
   lead: Lead;
   onClose: () => void;
   onChanged: (lead: Lead) => void;
   onOpenProposal: (lead: Lead) => void;
   onOpenPlaybook: (lead: Lead) => void;
+  onOpenRoi: (lead: Lead) => void;
+  onOpenAudit: (lead: Lead) => void;
+  onOpenAudio: (lead: Lead) => void;
+  onOpenBeforeAfter: (lead: Lead) => void;
+  onOpenPublicProposal: (lead: Lead) => void;
 }) {
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [selectedApproach, setSelectedApproach] = useState<ApproachType>("curiosity");
   const [demoUrlInput, setDemoUrlInput] = useState(lead.demoUrl || "");
+
+  const handleToggleVoice = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Seu navegador não suporta reconhecimento de voz direto. Recomendamos Google Chrome ou Edge.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setNote((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const googleCalendarUrl = useMemo(() => {
+    if (!lead.nextFollowUp) return null;
+    const d = new Date(lead.nextFollowUp);
+    const startStr = d.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const endDate = new Date(d.getTime() + 30 * 60 * 1000);
+    const endStr = endDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const title = encodeURIComponent(`Follow-up Prospector CRM: ${lead.name}`);
+    const details = encodeURIComponent(`Contato de prospecção comercial da ${lead.name} (${lead.segment} em ${lead.city}).
+Telefone: ${lead.phone || "Não informado"}
+WhatsApp: ${lead.whatsappUrl || "Não informado"}
+Próxima ação: ${lead.nextAction || "Retornar contato"}`);
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}`;
+  }, [lead.nextFollowUp, lead.name, lead.segment, lead.city, lead.phone, lead.whatsappUrl, lead.nextAction]);
 
   const [editForm, setEditForm] = useState({
     name: lead.name,
@@ -221,11 +287,56 @@ function LeadDrawer({
               <button
                 type="button"
                 className="secondary btn-sm"
+                onClick={() => onOpenRoi(lead)}
+                title="Calculadora de Perda Invisível & ROI"
+              >
+                <Calculator size={13} />
+                <span>ROI</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenAudit(lead)}
+                title="Raio-X Técnico de Performance e SEO Local"
+              >
+                <Activity size={13} />
+                <span>Raio-X</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenBeforeAfter(lead)}
+                title="Card Antes vs Depois da Presença Digital"
+              >
+                <Layers size={13} />
+                <span>Antes/Depois</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenAudio(lead)}
+                title="Roteiro de Áudio para WhatsApp (30s)"
+              >
+                <Mic size={13} />
+                <span>Áudio</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenPublicProposal(lead)}
+                title="Abrir Proposta Online do Cliente"
+              >
+                <Share2 size={13} />
+                <span>Link Web</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
                 onClick={() => onOpenProposal(lead)}
                 title="Gerar proposta comercial personalizada em PDF"
               >
-                <FileText size={14} />
-                <span>Proposta PDF</span>
+                <FileText size={13} />
+                <span>PDF</span>
               </button>
               <button
                 type="button"
@@ -233,7 +344,7 @@ function LeadDrawer({
                 onClick={() => onOpenPlaybook(lead)}
                 title="Ver todas as opções de abordagem"
               >
-                <BookOpen size={14} />
+                <BookOpen size={13} />
                 <span>Playbook</span>
               </button>
               <button className="icon-button" onClick={onClose} aria-label="Fechar ficha">
@@ -562,6 +673,33 @@ function LeadDrawer({
             {busy === "demo" ? "Preparando…" : "Gerar briefing da demonstração"}
           </button>
 
+          {/* Templates Setoriais Lovable */}
+          <div className="demo-templates-box">
+            <span className="demo-templates-label">Templates Prontos por Nicho:</span>
+            <div className="demo-templates-grid">
+              {[
+                { label: "🦷 Odonto", url: "https://preview--odonto-santos.lovable.app" },
+                { label: "🍔 Gastronomia", url: "https://preview--burger-santos.lovable.app" },
+                { label: "🏠 Imobiliária", url: "https://preview--imob-santos.lovable.app" },
+                { label: "💅 Estética", url: "https://preview--beleza-santos.lovable.app" },
+                { label: "🚗 Auto Center", url: "https://preview--auto-santos.lovable.app" }
+              ].map((tpl) => (
+                <button
+                  key={tpl.label}
+                  type="button"
+                  className="demo-tpl-pill"
+                  onClick={() => {
+                    setDemoUrlInput(tpl.url);
+                    act("save-demo-url", () => api.update(lead.id, { demoUrl: tpl.url }));
+                  }}
+                  title={`Vincular modelo de ${tpl.label}`}
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="drawer-demo-url-box">
             <span className="demo-url-label">Link do Protótipo / Demonstração (ex: Lovable)</span>
             <div className="input-action-row">
@@ -625,6 +763,19 @@ function LeadDrawer({
               }
             />
           </label>
+
+          {googleCalendarUrl && (
+            <a
+              href={googleCalendarUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-google-calendar"
+              title="Criar evento oficial no Google Agenda com lembrete"
+            >
+              <CalendarPlus size={14} />
+              <span>Adicionar ao Google Agenda</span>
+            </a>
+          )}
         </section>
 
         {/* Histórico de Interações */}
@@ -633,6 +784,33 @@ function LeadDrawer({
             <h3>Histórico de contatos</h3>
             <span className="drawer-record-badge">{lead.interactions.length} registros</span>
           </div>
+
+          {/* Quick Action Chips */}
+          <div className="quick-interaction-section">
+            <span className="quick-interaction-label">Anotações Rápidas em 1 Clique:</span>
+            <div className="quick-interaction-chips">
+              {[
+                { label: "📞 Ligou s/ atender", text: "Ligou para a empresa, porém ninguém atendeu." },
+                { label: "🎙️ Mandou áudio WA", text: "Enviou mensagem de áudio personalizada pelo WhatsApp." },
+                { label: "📋 Pediu proposta", text: "Cliente demonstrou interesse e solicitou o envio da proposta comercial." },
+                { label: "💻 Demonstração apresentada", text: "Apresentou demonstração / protótipo do site." },
+                { label: "💰 Negociando valores", text: "Em negociação de condições de pagamento e fechamento." }
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  className="quick-chip-btn"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    act("quick-note", () => api.interaction(lead.id, chip.text));
+                  }}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <form
             className="drawer-history-form"
             onSubmit={(e) => {
@@ -641,15 +819,26 @@ function LeadDrawer({
               act("note", () => api.interaction(lead.id, note)).then(() => setNote(""));
             }}
           >
-            <label className="field history-field">
-              <span>Registrar nova anotação</span>
+            <div className="field history-field">
+              <div className="field-header-row">
+                <span>Registrar nova anotação</span>
+                <button
+                  type="button"
+                  className={`btn-speech-mic ${isListening ? "listening" : ""}`}
+                  onClick={handleToggleVoice}
+                  title={isListening ? "Ouvindo... Clique para parar" : "Ditar anotação por voz"}
+                >
+                  {isListening ? <MicOff size={13} /> : <Mic size={13} />}
+                  <span>{isListening ? "Ouvindo microfone..." : "Ditar por voz"}</span>
+                </button>
+              </div>
               <textarea
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Ex.: Falou com o gerente pelo WhatsApp, pediu demonstração na quinta."
               />
-            </label>
+            </div>
             <button className="primary full history-submit-btn" disabled={busy === "note" || !note.trim()}>
               <MessageSquareText size={16} />
               {busy === "note" ? "Salvando…" : "Salvar no histórico"}
@@ -899,6 +1088,18 @@ export function App() {
   const [webhookDocOpen, setWebhookDocOpen] = useState(false);
   const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
 
+  // Commercial Suite Modals (ROI, Raio-X Audit, Audio WhatsApp, Before/After, Public Proposal)
+  const [roiModalLead, setRoiModalLead] = useState<Lead | null>(null);
+  const [auditModalLead, setAuditModalLead] = useState<Lead | null>(null);
+  const [audioModalLead, setAudioModalLead] = useState<Lead | null>(null);
+  const [beforeAfterModalLead, setBeforeAfterModalLead] = useState<Lead | null>(null);
+  const [publicProposalLeadId, setPublicProposalLeadId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("proposta");
+    }
+    return null;
+  });
+
   // New navigation & productivity states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("prospector_sidebar_collapsed") === "true";
@@ -1069,6 +1270,20 @@ export function App() {
   const dailyTargetCount = 10;
   const contactedTodayCount = Math.min(quickCounts.withWhatsapp, dailyTargetCount);
   const dailyProgressPercent = Math.min(100, Math.round((contactedTodayCount / dailyTargetCount) * 100));
+
+  if (publicProposalLeadId) {
+    return (
+      <PublicProposalView
+        leadId={publicProposalLeadId}
+        onBackToCrm={() => {
+          if (typeof window !== "undefined") {
+            window.history.pushState({}, "", window.location.pathname);
+          }
+          setPublicProposalLeadId(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div className={`shell ${sidebarCollapsed ? "shell-sidebar-collapsed" : ""}`}>
@@ -1793,6 +2008,56 @@ export function App() {
           onOpenPlaybook={(leadForPlaybook) => {
             setPlaybookModalLead(leadForPlaybook);
             setApproachPlaybookOpen(true);
+          }}
+          onOpenRoi={(l) => setRoiModalLead(l)}
+          onOpenAudit={(l) => setAuditModalLead(l)}
+          onOpenAudio={(l) => setAudioModalLead(l)}
+          onOpenBeforeAfter={(l) => setBeforeAfterModalLead(l)}
+          onOpenPublicProposal={(l) => {
+            if (typeof window !== "undefined") {
+              window.history.pushState({}, "", `?proposta=${l.id}`);
+            }
+            setPublicProposalLeadId(l.id);
+          }}
+        />
+      )}
+
+      {roiModalLead && (
+        <RoiCalculatorModal
+          lead={roiModalLead}
+          onClose={() => setRoiModalLead(null)}
+          onLoggedInteraction={(note) => {
+            api.interaction(roiModalLead.id, note).then(changed).catch(() => {});
+          }}
+        />
+      )}
+
+      {auditModalLead && (
+        <LeadAuditModal
+          lead={auditModalLead}
+          onClose={() => setAuditModalLead(null)}
+          onLoggedInteraction={(note) => {
+            api.interaction(auditModalLead.id, note).then(changed).catch(() => {});
+          }}
+        />
+      )}
+
+      {audioModalLead && (
+        <ColdAudioScriptModal
+          lead={audioModalLead}
+          onClose={() => setAudioModalLead(null)}
+          onLoggedInteraction={(note) => {
+            api.interaction(audioModalLead.id, note).then(changed).catch(() => {});
+          }}
+        />
+      )}
+
+      {beforeAfterModalLead && (
+        <BeforeAfterCardModal
+          lead={beforeAfterModalLead}
+          onClose={() => setBeforeAfterModalLead(null)}
+          onLoggedInteraction={(note) => {
+            api.interaction(beforeAfterModalLead.id, note).then(changed).catch(() => {});
           }}
         />
       )}
