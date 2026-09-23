@@ -172,7 +172,36 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
 
   const updatePreviewField = (index: number, field: keyof ResolvedPlacePreview, value: string) => {
     setPreviews((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const updated = { ...item, [field]: value };
+        if (field === "phone") {
+          const rawDigits = value.replace(/\D/g, "");
+          let cleanDigits = rawDigits.startsWith("55") && rawDigits.length >= 12 ? rawDigits.slice(2) : rawDigits;
+          if (cleanDigits.length === 8 || cleanDigits.length === 9) cleanDigits = `13${cleanDigits}`;
+          const hasWa = cleanDigits.length >= 10 || value.includes("wa.me");
+          updated.hasWhatsapp = hasWa;
+          updated.whatsappUrl = hasWa && cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined;
+        }
+        return updated;
+      })
+    );
+  };
+
+  const togglePreviewWhatsapp = (index: number) => {
+    setPreviews((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const nextWa = !item.hasWhatsapp;
+        const rawDigits = (item.phone || "").replace(/\D/g, "");
+        let cleanDigits = rawDigits.startsWith("55") && rawDigits.length >= 12 ? rawDigits.slice(2) : rawDigits;
+        if (cleanDigits.length === 8 || cleanDigits.length === 9) cleanDigits = `13${cleanDigits}`;
+        return {
+          ...item,
+          hasWhatsapp: nextWa,
+          whatsappUrl: nextWa && cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined
+        };
+      })
     );
   };
 
@@ -192,20 +221,36 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
   const handleConfirmImport = async () => {
     const leadsToImport = previews
       .filter((_, index) => selectedIndices[index])
-      .map((item) => ({
-        name: item.name,
-        segment: item.segment,
-        city: item.city,
-        state: item.state,
-        address: item.address,
-        mapsUrl: item.mapsUrl,
-        website: item.website,
-        phone: item.phone,
-        whatsappUrl: item.whatsappUrl,
-        hasWhatsapp: item.hasWhatsapp,
-        siteStatus: item.siteStatus,
-        digitalPresence: item.digitalPresence as "unknown" | "low" | "medium" | "high"
-      }));
+      .map((item) => {
+        const rawDigits = (item.phone || "").replace(/\D/g, "");
+        let cleanDigits = rawDigits.startsWith("55") && rawDigits.length >= 12 ? rawDigits.slice(2) : rawDigits;
+        if (cleanDigits.length === 8 || cleanDigits.length === 9) {
+          cleanDigits = `13${cleanDigits}`;
+        }
+        const hasWaUrl = Boolean(
+          item.whatsappUrl ||
+          (item.website || "").includes("wa.me") ||
+          (item.website || "").includes("whatsapp") ||
+          (item.phone || "").includes("wa.me") ||
+          (item.phone || "").includes("whatsapp")
+        );
+        const hasWhatsapp = Boolean(item.hasWhatsapp || hasWaUrl || cleanDigits.length >= 10);
+        const whatsappUrl = item.whatsappUrl || (hasWhatsapp && cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined);
+        return {
+          name: item.name,
+          segment: item.segment,
+          city: item.city,
+          state: item.state,
+          address: item.address,
+          mapsUrl: item.mapsUrl,
+          website: item.website,
+          phone: item.phone,
+          whatsappUrl,
+          hasWhatsapp,
+          siteStatus: item.siteStatus,
+          digitalPresence: item.digitalPresence as "unknown" | "low" | "medium" | "high"
+        };
+      });
 
     if (!leadsToImport.length) {
       setError("Selecione ao menos uma empresa para importar.");
@@ -509,19 +554,29 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
                         </td>
                         <td>
                           <div className="phone-cell">
+                            <input
+                              className="inline-input small"
+                              value={item.phone || ""}
+                              onChange={(e) => updatePreviewField(idx, "phone", e.target.value)}
+                              placeholder="(13) 99999-9999"
+                            />
                             {item.phone ? (
-                              <>
-                                <span>{item.phone}</span>
+                              <button
+                                type="button"
+                                className={`badge-pill-toggle ${item.hasWhatsapp ? "badge-whatsapp active" : "badge-landline"}`}
+                                onClick={() => togglePreviewWhatsapp(idx)}
+                                title="Clique para alternar WhatsApp verificado"
+                              >
                                 {item.hasWhatsapp ? (
-                                  <span className="badge-whatsapp" title="WhatsApp verificado">
-                                    <MessageCircle size={13} /> WhatsApp
-                                  </span>
+                                  <>
+                                    <MessageCircle size={12} /> WhatsApp ativo
+                                  </>
                                 ) : (
-                                  <span className="badge-landline" title="Telefone fixo">
-                                    <Phone size={12} /> Fixo
-                                  </span>
+                                  <>
+                                    <Phone size={12} /> Ativar WhatsApp
+                                  </>
                                 )}
-                              </>
+                              </button>
                             ) : (
                               <small className="muted">Sem telefone</small>
                             )}

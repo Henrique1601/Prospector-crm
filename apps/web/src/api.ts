@@ -24,6 +24,11 @@ export const api = {
       headers: token ? { "Content-Type": "application/json", "x-webhook-token": token } : { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     }),
+  discoverLeadsWithAi: (params: { segment: string; city: string; state?: string; count?: number }) =>
+    request<{ leads: ResolvedPlacePreview[] }>("/api/prospecting/ai-discover", {
+      method: "POST",
+      body: JSON.stringify(params)
+    }),
   resolveMaps: (urls: string[]) => request<ResolvedPlacePreview[]>("/api/leads/resolve-maps", { method: "POST", body: JSON.stringify({ urls }) }),
   previewCsv: (content: string) => request<ResolvedPlacePreview[]>("/api/leads/preview/csv", { method: "POST", body: JSON.stringify({ content }) }),
   previewNotion: (databaseId?: string, apiKey?: string) => request<ResolvedPlacePreview[]>("/api/leads/preview/notion", { method: "POST", body: JSON.stringify({ databaseId, apiKey }) }),

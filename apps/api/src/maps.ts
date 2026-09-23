@@ -27,9 +27,25 @@ export function extractWhatsappFromUrl(url?: string): {
     lower.includes("whatsapp.com/send") ||
     lower.includes("whatsapp://send")
   ) {
-    let digits = cleanDigits(trimmed);
+    let rawTarget = trimmed;
+    try {
+      const parsed = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+      const phoneParam = parsed.searchParams.get("phone");
+      if (phoneParam) {
+        rawTarget = phoneParam;
+      } else {
+        rawTarget = parsed.pathname.replace(/^\/+/, "");
+      }
+    } catch {
+      rawTarget = trimmed;
+    }
+
+    let digits = cleanDigits(rawTarget);
     if (digits.startsWith("55") && digits.length >= 12) {
       digits = digits.slice(2);
+    }
+    if (digits.length === 8 || digits.length === 9) {
+      digits = `13${digits}`;
     }
     if (digits.length === 11) {
       const ddd = digits.slice(0, 2);
@@ -103,6 +119,15 @@ export function detectWhatsappAndPhone(
   if (digits.startsWith("55") && digits.length >= 12) {
     digits = digits.slice(2);
   }
+  // Auto-fill DDD 13 (Baixada Santista default) if 8 or 9 digits without DDD
+  if (digits.length === 8 || digits.length === 9) {
+    digits = `13${digits}`;
+  }
+
+  // If website was a specific WhatsApp link, use its whatsappUrl, but format the phone
+  const preferredWhatsappUrl = fromWebUrl.isWhatsapp && fromWebUrl.whatsappUrl
+    ? fromWebUrl.whatsappUrl
+    : `https://wa.me/55${digits}`;
 
   // 3. Brazilian mobile (11 digits: DDD + 9xxxxxxxx)
   if (digits.length === 11 && /^[1-9]{2}9\d{8}$/.test(digits)) {
@@ -112,12 +137,12 @@ export function detectWhatsappAndPhone(
     return {
       phone: `(${ddd}) ${part1}-${part2}`,
       hasWhatsapp: true,
-      whatsappUrl: `https://wa.me/55${digits}`
+      whatsappUrl: preferredWhatsappUrl
     };
   }
 
   // 4. Brazilian landline or commercial phone (10 digits: DDD + xxxxxxxx)
-  // In Google Maps, companies rarely label numbers as WhatsApp. In Brazil, businesses
+  // In Google Maps, companies rarely label numbers as WhatsApp, but in Brazil businesses
   // frequently use WhatsApp Business on landlines. We enable WhatsApp support so Henrique can contact with 1 click.
   if (digits.length === 10 && /^[1-9]{2}\d{8}$/.test(digits)) {
     const ddd = digits.slice(0, 2);
@@ -126,7 +151,7 @@ export function detectWhatsappAndPhone(
     return {
       phone: `(${ddd}) ${part1}-${part2}`,
       hasWhatsapp: true,
-      whatsappUrl: `https://wa.me/55${digits}`
+      whatsappUrl: preferredWhatsappUrl
     };
   }
 
@@ -135,7 +160,16 @@ export function detectWhatsappAndPhone(
     return {
       phone: rawPhone.trim(),
       hasWhatsapp: true,
-      whatsappUrl: `https://wa.me/55${digits}`
+      whatsappUrl: preferredWhatsappUrl
+    };
+  }
+
+  // 6. If phone didn't have enough digits but website is a WhatsApp link
+  if (fromWebUrl.isWhatsapp && fromWebUrl.whatsappUrl) {
+    return {
+      phone: fromWebUrl.phone || rawPhone.trim(),
+      hasWhatsapp: true,
+      whatsappUrl: fromWebUrl.whatsappUrl
     };
   }
 
@@ -143,6 +177,25 @@ export function detectWhatsappAndPhone(
     phone: rawPhone.trim(),
     hasWhatsapp: false
   };
+}
+
+export function resolveLeadWhatsapp(params: {
+  phone?: string;
+  website?: string;
+  whatsappUrl?: string;
+  hasWhatsapp?: boolean;
+}): { phone?: string; hasWhatsapp: boolean; whatsappUrl?: string } {
+  const phoneDetection = detectWhatsappAndPhone(params.phone, params.website);
+  const phone = params.phone || phoneDetection.phone;
+  const whatsappUrl = params.whatsappUrl || phoneDetection.whatsappUrl;
+  const hasWhatsapp = Boolean(
+    params.hasWhatsapp ||
+    phoneDetection.hasWhatsapp ||
+    whatsappUrl ||
+    (phone && cleanDigits(phone).length >= 8) ||
+    (params.website && (params.website.includes("wa.me") || params.website.includes("whatsapp")))
+  );
+  return { phone, hasWhatsapp, whatsappUrl: hasWhatsapp ? whatsappUrl : undefined };
 }
 
 export function classifyWebsite(website?: string): {

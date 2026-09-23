@@ -4,7 +4,8 @@ import express from "express";
 import { z } from "zod";
 import { analyzeWithAi, demoBrief, localAnalysis } from "./ai.js";
 import { fetchNotionDatabase, parseCsvToLeads } from "./importers.js";
-import { classifyWebsite, detectWhatsappAndPhone, resolveMultipleMapsLinks } from "./maps.js";
+import { classifyWebsite, detectWhatsappAndPhone, resolveLeadWhatsapp, resolveMultipleMapsLinks } from "./maps.js";
+import { discoverProspectingLeads } from "./prospecting.js";
 import { readStore, writeStore } from "./store.js";
 import { stages, type CityConversionStats, type ConversionAnalytics, type Lead, type SegmentConversionStats } from "./types.js";
 
@@ -219,6 +220,25 @@ app.post("/api/leads/preview/notion", async (req, res) => {
   res.json(results);
 });
 
+app.post("/api/prospecting/ai-discover", async (req, res) => {
+  const schema = z.object({
+    segment: z.string().min(2),
+    city: z.string().min(2),
+    state: z.string().default("SP"),
+    count: z.number().int().min(1).max(20).default(5)
+  });
+  const { segment, city, state, count } = schema.parse(req.body);
+  const store = await readStore();
+  const leads = await discoverProspectingLeads({
+    segment,
+    city,
+    state,
+    count,
+    existingLeads: store.leads
+  });
+  res.json({ leads });
+});
+
 const leadInput = z.object({
   name: z.string().min(2),
   segment: z.string().min(2),
@@ -240,12 +260,17 @@ app.post("/api/leads", async (req, res) => {
   const store = await readStore();
   const now = new Date().toISOString();
 
-  const phoneDetection = detectWhatsappAndPhone(input.phone, input.website);
+  const waResolution = resolveLeadWhatsapp({
+    phone: input.phone,
+    website: input.website,
+    whatsappUrl: input.whatsappUrl,
+    hasWhatsapp: input.hasWhatsapp
+  });
   const siteInfo = classifyWebsite(input.website);
 
-  const phone = input.phone || phoneDetection.phone;
-  const whatsappUrl = input.whatsappUrl || phoneDetection.whatsappUrl;
-  const hasWhatsapp = input.hasWhatsapp ?? phoneDetection.hasWhatsapp;
+  const phone = waResolution.phone;
+  const whatsappUrl = waResolution.whatsappUrl;
+  const hasWhatsapp = waResolution.hasWhatsapp;
   const website = siteInfo.isWhatsappOnly ? undefined : input.website;
 
   const lead: Lead = {
@@ -382,12 +407,17 @@ app.post("/api/leads/batch", async (req, res) => {
 
   for (const item of input.leads) {
     const shouldAnalyze = input.autoAnalyze !== undefined ? input.autoAnalyze : (item.autoAnalyze !== undefined ? item.autoAnalyze : true);
-    const phoneDetection = detectWhatsappAndPhone(item.phone, item.website);
+    const waResolution = resolveLeadWhatsapp({
+      phone: item.phone,
+      website: item.website,
+      whatsappUrl: item.whatsappUrl,
+      hasWhatsapp: item.hasWhatsapp
+    });
     const siteInfo = classifyWebsite(item.website);
 
-    const phone = item.phone || phoneDetection.phone;
-    const whatsappUrl = item.whatsappUrl || phoneDetection.whatsappUrl;
-    const hasWhatsapp = item.hasWhatsapp ?? phoneDetection.hasWhatsapp;
+    const phone = waResolution.phone;
+    const whatsappUrl = waResolution.whatsappUrl;
+    const hasWhatsapp = waResolution.hasWhatsapp;
     const website = siteInfo.isWhatsappOnly ? undefined : item.website;
 
     let lead: Lead = {

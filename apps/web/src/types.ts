@@ -1,4 +1,5 @@
 export type Stage = "new" | "analyzed" | "contacted" | "replied" | "meeting" | "proposal" | "won" | "lost";
+export type Priority = "low" | "medium" | "high" | "urgent";
 
 export interface Interaction {
   id: string;
@@ -66,6 +67,10 @@ export interface ResolvedPlacePreview {
   isDuplicate?: boolean;
   duplicateReason?: string;
   error?: string;
+  opportunity?: string;
+  score?: number;
+  priority?: Priority;
+  suggestedMessage?: string;
 }
 
 export interface DashboardData {

@@ -713,6 +713,19 @@ function AddLead({
       const results = await api.resolveMaps([mapsLink.trim()]);
       if (results && results[0] && !results[0].error) {
         const found = results[0];
+        const rawDigits = (found.phone || "").replace(/\D/g, "");
+        let cleanDigits = rawDigits.startsWith("55") && rawDigits.length >= 12 ? rawDigits.slice(2) : rawDigits;
+        if (cleanDigits.length === 8 || cleanDigits.length === 9) {
+          cleanDigits = `13${cleanDigits}`;
+        }
+        const hasWaUrl = Boolean(
+          found.whatsappUrl ||
+          (found.website || "").includes("wa.me") ||
+          (found.website || "").includes("whatsapp")
+        );
+        const hasWhatsapp = found.hasWhatsapp || Boolean(found.phone && cleanDigits.length >= 10) || hasWaUrl;
+        const whatsappUrl = found.whatsappUrl || (hasWhatsapp && cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined);
+
         setForm((prev) => ({
           ...prev,
           name: found.name || prev.name,
@@ -723,8 +736,8 @@ function AddLead({
           mapsUrl: found.mapsUrl || mapsLink.trim(),
           website: found.website || prev.website,
           phone: found.phone || prev.phone,
-          whatsappUrl: found.whatsappUrl,
-          hasWhatsapp: found.hasWhatsapp,
+          whatsappUrl,
+          hasWhatsapp,
           siteStatus: found.siteStatus,
           digitalPresence: found.digitalPresence
         }));
@@ -738,11 +751,20 @@ function AddLead({
     e.preventDefault();
     setBusy(true);
     try {
-      const cleanPhone = (form.phone || "").replace(/\D/g, "");
-      const cleanDigits = cleanPhone.startsWith("55") && cleanPhone.length >= 12 ? cleanPhone.slice(2) : cleanPhone;
-      const hasWaUrl = Boolean(form.whatsappUrl || (form.website || "").includes("wa.me") || (form.phone || "").includes("wa.me"));
-      const hasWhatsapp = form.hasWhatsapp || hasWaUrl || cleanDigits.length >= 10;
-      const whatsappUrl = form.whatsappUrl || (cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined);
+      const rawDigits = (form.phone || "").replace(/\D/g, "");
+      let cleanDigits = rawDigits.startsWith("55") && rawDigits.length >= 12 ? rawDigits.slice(2) : rawDigits;
+      if (cleanDigits.length === 8 || cleanDigits.length === 9) {
+        cleanDigits = `13${cleanDigits}`;
+      }
+      const hasWaUrl = Boolean(
+        form.whatsappUrl ||
+        (form.website || "").includes("wa.me") ||
+        (form.website || "").includes("whatsapp") ||
+        (form.phone || "").includes("wa.me") ||
+        (form.phone || "").includes("whatsapp")
+      );
+      const hasWhatsapp = Boolean(form.hasWhatsapp || hasWaUrl || cleanDigits.length >= 10);
+      const whatsappUrl = form.whatsappUrl || (hasWhatsapp && cleanDigits.length >= 10 ? `https://wa.me/55${cleanDigits}` : undefined);
 
       const created = await api.add({
         ...form,
@@ -1793,6 +1815,10 @@ export function App() {
         <DailyProspectingModal
           onClose={() => setProspectingOpen(false)}
           onOpenBatchImport={() => setBatchOpen(true)}
+          onLeadsImported={(newLeads) => {
+            setLeads((items) => [...newLeads, ...items]);
+            void load();
+          }}
         />
       )}
 

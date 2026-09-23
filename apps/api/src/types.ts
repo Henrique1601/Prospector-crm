@@ -69,6 +69,10 @@ export interface ResolvedPlacePreview {
   isDuplicate?: boolean;
   duplicateReason?: string;
   error?: string;
+  opportunity?: string;
+  score?: number;
+  priority?: Priority;
+  suggestedMessage?: string;
 }
 
 export interface Store {

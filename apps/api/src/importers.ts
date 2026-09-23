@@ -152,7 +152,7 @@ export function parseCsvToLeads(
       segment = inferSegmentFromName(name);
     }
 
-    const phoneInfo = detectWhatsappAndPhone(phone);
+    const phoneInfo = detectWhatsappAndPhone(phone, website);
     const siteInfo = classifyWebsite(website);
 
     // Duplicate check
@@ -170,7 +170,7 @@ export function parseCsvToLeads(
       state: state || "SP",
       address,
       mapsUrl: mapsUrl || "",
-      website: siteInfo.website,
+      website: siteInfo.isWhatsappOnly ? undefined : siteInfo.website,
       phone: phoneInfo.phone,
       hasWhatsapp: phoneInfo.hasWhatsapp,
       whatsappUrl: phoneInfo.whatsappUrl,
@@ -298,7 +298,7 @@ export async function fetchNotionDatabase(
     if (!name) continue;
     if (!segment) segment = inferSegmentFromName(name);
 
-    const phoneInfo = detectWhatsappAndPhone(phone);
+    const phoneInfo = detectWhatsappAndPhone(phone, website);
     const siteInfo = classifyWebsite(website);
 
     const normName = name.toLowerCase().trim();
@@ -315,7 +315,7 @@ export async function fetchNotionDatabase(
       state,
       address,
       mapsUrl: mapsUrl || page.url || "",
-      website: siteInfo.website,
+      website: siteInfo.isWhatsappOnly ? undefined : siteInfo.website,
       phone: phoneInfo.phone,
       hasWhatsapp: phoneInfo.hasWhatsapp,
       whatsappUrl: phoneInfo.whatsappUrl,

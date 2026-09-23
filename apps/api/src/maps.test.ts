@@ -3,7 +3,8 @@ import {
   classifyWebsite,
   detectWhatsappAndPhone,
   inferSegmentFromName,
-  parseMapsUrl
+  parseMapsUrl,
+  resolveLeadWhatsapp
 } from "./maps.js";
 
 describe("Detecção de WhatsApp e Telefone", () => {
@@ -37,6 +38,32 @@ describe("Detecção de WhatsApp e Telefone", () => {
     expect(resFromWeb.hasWhatsapp).toBe(true);
     expect(resFromWeb.phone).toBe("(13) 99138-3222");
     expect(resFromWeb.whatsappUrl).toBe("https://wa.me/5513991383222");
+
+    // Link com query params de mensagem (ex: ?text=ola123)
+    const resWithText = detectWhatsappAndPhone("https://wa.me/5513991383222?text=ola123");
+    expect(resWithText.hasWhatsapp).toBe(true);
+    expect(resWithText.phone).toBe("(13) 99138-3222");
+  });
+
+  it("completa DDD 13 padrão para números locais de 8 ou 9 dígitos sem DDD", () => {
+    const res8 = detectWhatsappAndPhone("3234-5678");
+    expect(res8.hasWhatsapp).toBe(true);
+    expect(res8.phone).toBe("(13) 3234-5678");
+    expect(res8.whatsappUrl).toBe("https://wa.me/551332345678");
+
+    const res9 = detectWhatsappAndPhone("99712-3456");
+    expect(res9.hasWhatsapp).toBe(true);
+    expect(res9.phone).toBe("(13) 99712-3456");
+    expect(res9.whatsappUrl).toBe("https://wa.me/5513997123456");
+  });
+
+  it("resolveLeadWhatsapp garante hasWhatsapp=true mesmo se input.hasWhatsapp era false quando telefone ou link existem", () => {
+    const res = resolveLeadWhatsapp({
+      phone: "(13) 3261-2179",
+      hasWhatsapp: false
+    });
+    expect(res.hasWhatsapp).toBe(true);
+    expect(res.whatsappUrl).toBe("https://wa.me/551332612179");
   });
 
   it("trata telefone nulo ou vazio com segurança", () => {
