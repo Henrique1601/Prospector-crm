@@ -32,6 +32,26 @@ Os seguintes agent skills estão instalados no ambiente e devem ser usados estra
 
 Para documentação completa dos skills, consulte [[Second Brain/Agent Skills and Capabilities]].
 
+## 5. Diretrizes de Frontend, Design e Motion Obrigatórias (Regra Permanente)
+Para **toda e qualquer nova implementação ou ajuste visual** no frontend do Prospector CRM, o agente **DEVE obrigatoriamente** aplicar as diretrizes consolidadas destas 4 skills:
+
+1. **`high-end-visual-design`**:
+   - **Arquitetura Double-Bezel (Doppelrand):** Cards e contêineres com moldura dupla (outer shell sutil + inner core de alta legibilidade com `inset shadow`).
+   - **Tipografia de Elite:** `Plus Jakarta Sans` para textos, títulos e botões; `Space Grotesk` para números, KPIs e scores.
+   - **Anti-padrões Proibidos:** Proibido o uso de sombras cinzas pesadas (`shadow-md`, `rgba(0,0,0,0.3)`), bordas cinzas genéricas ou layouts rígidos de 3 colunas padrão.
+   - **Espaçamento e Respiração:** Micro-rótulos (`eyebrow`) em maiúsculas com tracking largo (`0.08em` a `0.12em`), contraste nítido e áreas confortáveis de clique.
+
+2. **`design-taste-frontend`**:
+   - **Anti-Slop / Zero Genérico:** Interfaces intencionais que não pareçam geradas por template ou IA.
+   - **Contraste & Profundidade:** Paleta executiva de Deep OLED (`#071719` / `#0a1f22`), Pine Teal (`#1a5658`), Mint fresco (`#a3ded2`) e Coral vivo (`#ea580c`).
+   - **Adaptação Responsiva Cirúrgica:** Elementos devem quebrar com elegância sem sobrepor texto nem truncar nomes de empresas.
+
+3. **`animate` & `find-animation-opportunities`**:
+   - **Física de Emil Kowalski:** Transições aceleradas por GPU restritas a `transform` e `opacity` (nunca animar layout como `width`, `height`, `top`, `left`).
+   - **Curvas e Duração:** Curva orgânica padrão `cubic-bezier(0.16, 1, 0.3, 1)` ou `cubic-bezier(0.2, 0, 0, 1)`, durações entre `150ms` e `280ms`.
+   - **Nunca usar `scale(0)`:** Entradas começam em `scale(0.96-0.98)` com fade de opacidade.
+   - **Gate de Ações Frequentes:** Ações de altíssima frequência (digitar busca, atalhos de teclado) têm latência 0ms e resposta instantânea.
+
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)
 

@@ -213,36 +213,56 @@ function LeadDrawer({
       <button className="drawer-scrim" onClick={onClose} aria-label="Fechar ficha do lead" />
       <aside className="drawer">
         <div className="drawer-header">
-          <div>
+          <div className="drawer-header-top-row">
             <span className="eyebrow">
               {lead.segment} · {lead.city}/{lead.state}
             </span>
-            <h2>{lead.name}</h2>
+            <div className="drawer-header-actions">
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenProposal(lead)}
+                title="Gerar proposta comercial personalizada em PDF"
+              >
+                <FileText size={14} />
+                <span>Proposta PDF</span>
+              </button>
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => onOpenPlaybook(lead)}
+                title="Ver todas as opções de abordagem"
+              >
+                <BookOpen size={14} />
+                <span>Playbook</span>
+              </button>
+              <button className="icon-button" onClick={onClose} aria-label="Fechar ficha">
+                <X size={16} />
+              </button>
+            </div>
           </div>
-        <div className="drawer-header-actions">
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => onOpenProposal(lead)}
-            title="Gerar proposta comercial personalizada em PDF"
-          >
-            <FileText size={15} />
-            <span>Proposta PDF</span>
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => onOpenPlaybook(lead)}
-            title="Ver todas as opções de abordagem"
-          >
-            <BookOpen size={15} />
-            <span>Playbook</span>
-          </button>
-          <button className="icon-button" onClick={onClose} aria-label="Fechar ficha">
-            <X />
-          </button>
+          <div className="drawer-header-title-row">
+            <h2>{lead.name}</h2>
+            <div className="drawer-header-badges">
+              <span className="drawer-badge score">Score {lead.score}</span>
+              <span className={`drawer-badge priority priority-${lead.priority}`}>
+                {lead.priority === "urgent" ? "Urgente" : lead.priority === "high" ? "Alta" : "Média"}
+              </span>
+              {lead.hasWhatsapp && (
+                <span className="drawer-badge wa">
+                  <MessageCircle size={11} /> WhatsApp
+                </span>
+              )}
+              {lead.website ? (
+                <a href={lead.website} target="_blank" rel="noreferrer" className="drawer-badge site">
+                  <Globe size={11} /> Site ativo
+                </a>
+              ) : (
+                <span className="drawer-badge nosite">Sem site</span>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
 
       <div className="drawer-body">
         {/* Card de Dados da Empresa */}
@@ -359,7 +379,7 @@ function LeadDrawer({
         </section>
 
         {/* Diagnóstico e Análise do Agente */}
-        <section>
+        <section className="drawer-card">
           <div className="section-title">
             <h3>Diagnóstico do agente</h3>
             <Score value={lead.score} />
@@ -393,7 +413,7 @@ function LeadDrawer({
         </section>
 
         {/* Abordagens Sugeridas */}
-        <section>
+        <section className="drawer-card">
           <div className="section-title">
             <h3>Abordagem sugerida</h3>
             <div className="section-actions-row">
@@ -516,7 +536,7 @@ function LeadDrawer({
         </section>
 
         {/* Demonstração & Protótipo Lovable */}
-        <section>
+        <section className="drawer-card">
           <div className="section-title">
             <h3>Demonstração & Landing Page</h3>
             {lead.demoUrl && (
@@ -571,7 +591,7 @@ function LeadDrawer({
         </section>
 
         {/* Agendamento de Follow-up */}
-        <section>
+        <section className="drawer-card">
           <div className="section-title">
             <h3>Próximo contato</h3>
             {lead.nextFollowUp && (
@@ -605,7 +625,7 @@ function LeadDrawer({
         </section>
 
         {/* Histórico de Interações */}
-        <section>
+        <section className="drawer-card">
           <div className="section-title">
             <h3>Histórico de contatos</h3>
             <span>{lead.interactions.length} registros</span>
@@ -936,6 +956,13 @@ export function App() {
     };
   }, [leads, todayFollowUps]);
 
+  const normalizeSearchText = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
   const visible = useMemo(
     () =>
       leads.filter((lead) => {
@@ -953,9 +980,15 @@ export function App() {
           if (!["high", "urgent"].includes(lead.priority)) return false;
         }
 
-        if (query) {
-          const text = `${lead.name} ${lead.segment} ${lead.city} ${lead.address || ""}`.toLowerCase();
-          if (!text.includes(query.toLowerCase())) return false;
+        if (query.trim()) {
+          const normQuery = normalizeSearchText(query);
+          const rawText = `${lead.name} ${lead.segment} ${lead.city} ${lead.address || ""} ${lead.phone || ""}`;
+          const normText = normalizeSearchText(rawText);
+          const cleanPhoneDigits = (lead.phone || "").replace(/\D/g, "");
+          const queryDigits = query.replace(/\D/g, "");
+          const phoneMatch = queryDigits.length >= 3 && cleanPhoneDigits.includes(queryDigits);
+
+          if (!normText.includes(normQuery) && !phoneMatch) return false;
         }
 
         return true;
@@ -1093,7 +1126,7 @@ export function App() {
         </nav>
 
         {!sidebarCollapsed ? (
-          <>
+          <div className="sidebar-footer">
             <div className="sidebar-health-badges">
               <div className="health-badge-row" title="Banco de dados Serverless Postgres">
                 <span className="live-dot" />
@@ -1105,27 +1138,14 @@ export function App() {
               </div>
             </div>
 
-            <div className="agent-card">
-              <div>
-                <Bot />
-                <span className="live-dot" />
-              </div>
-              <strong>Agente em modo {aiMode === "aisa" ? "AIsa" : "local"}</strong>
-              <p>
-                {aiMode === "aisa"
-                  ? "Pronto para gerar análises com IA."
-                  : "Simulação segura, sem consumo de créditos."}
-              </p>
-            </div>
-
-            <div className="profile">
+            <div className="profile" title="Henrique Bezerra - Desenvolvedor Web Full-Stack">
               <span>HB</span>
-              <div>
+              <div className="profile-text">
                 <strong>Henrique Bezerra</strong>
                 <small>Desenvolvedor Full-Stack</small>
               </div>
             </div>
-          </>
+          </div>
         ) : (
           <div className="sidebar-collapsed-footer">
             <button
@@ -1321,19 +1341,30 @@ export function App() {
               <h2>Leads e oportunidades</h2>
             </div>
             <div className="tools">
-              <label>
-                <Search />
+              <label className="search-field-label">
+                <Search size={15} />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar empresa, cidade…"
+                  placeholder="Buscar empresa, nicho, cidade, telefone…"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    className="clear-search-btn"
+                    onClick={() => setQuery("")}
+                    title="Limpar busca"
+                    aria-label="Limpar busca"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </label>
               <button
                 className="filter-button"
                 onClick={() => setFilter(filter === "all" ? "new" : "all")}
               >
-                <ListFilter />
+                <ListFilter size={15} />
                 {filter === "all" ? "Todos" : stageLabels[filter]}
               </button>
             </div>

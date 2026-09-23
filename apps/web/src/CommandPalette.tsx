@@ -147,16 +147,32 @@ export function CommandPalette({
     }
   ];
 
-  const filteredActions = baseActions.filter((a) =>
-    a.title.toLowerCase().includes(query.toLowerCase()) || (a.hint && a.hint.toLowerCase().includes(query.toLowerCase()))
-  );
+  const normalizeText = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const normQuery = normalizeText(query);
+  const queryDigits = query.replace(/\D/g, "");
+
+  const filteredActions = baseActions.filter((a) => {
+    if (!normQuery) return true;
+    return (
+      normalizeText(a.title).includes(normQuery) ||
+      (a.hint && normalizeText(a.hint).includes(normQuery))
+    );
+  });
 
   const filteredLeads: LeadItem[] = (query.trim()
-    ? leads.filter((l) =>
-        l.name.toLowerCase().includes(query.toLowerCase()) ||
-        l.segment.toLowerCase().includes(query.toLowerCase()) ||
-        l.city.toLowerCase().includes(query.toLowerCase())
-      )
+    ? leads.filter((l) => {
+        const leadText = normalizeText(`${l.name} ${l.segment} ${l.city} ${l.address || ""}`);
+        if (leadText.includes(normQuery)) return true;
+        const phoneDigits = (l.phone || "").replace(/\D/g, "");
+        if (queryDigits && queryDigits.length >= 3 && phoneDigits.includes(queryDigits)) return true;
+        return false;
+      })
     : leads.slice(0, 8)
   ).map((l) => ({
     id: `lead-${l.id}`,
