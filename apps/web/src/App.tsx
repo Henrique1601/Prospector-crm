@@ -536,7 +536,7 @@ function LeadDrawer({
         </section>
 
         {/* Demonstração & Protótipo Lovable */}
-        <section className="drawer-card">
+        <section className="drawer-card drawer-demo-card">
           <div className="section-title">
             <h3>Demonstração & Landing Page</h3>
             {lead.demoUrl && (
@@ -546,12 +546,15 @@ function LeadDrawer({
             )}
           </div>
           {lead.demoBrief ? (
-            <pre className="brief">{lead.demoBrief}</pre>
+            <div className="demo-brief-container">
+              <span className="demo-brief-eyebrow">Briefing do Projeto</span>
+              <pre className="brief">{lead.demoBrief}</pre>
+            </div>
           ) : (
-            <p>Gere um briefing de landing page ou vincule um protótipo construído no Lovable.</p>
+            <p className="drawer-empty-text">Gere um briefing de landing page sob medida ou vincule um protótipo construído no Lovable.</p>
           )}
           <button
-            className="primary full"
+            className="primary full demo-action-btn"
             disabled={busy === "demo"}
             onClick={() => act("demo", () => api.demo(lead.id))}
           >
@@ -625,19 +628,20 @@ function LeadDrawer({
         </section>
 
         {/* Histórico de Interações */}
-        <section className="drawer-card">
+        <section className="drawer-card drawer-history-card">
           <div className="section-title">
             <h3>Histórico de contatos</h3>
-            <span>{lead.interactions.length} registros</span>
+            <span className="drawer-record-badge">{lead.interactions.length} registros</span>
           </div>
           <form
+            className="drawer-history-form"
             onSubmit={(e) => {
               e.preventDefault();
               if (!note.trim()) return;
               act("note", () => api.interaction(lead.id, note)).then(() => setNote(""));
             }}
           >
-            <label className="field">
+            <label className="field history-field">
               <span>Registrar nova anotação</span>
               <textarea
                 rows={3}
@@ -646,46 +650,53 @@ function LeadDrawer({
                 placeholder="Ex.: Falou com o gerente pelo WhatsApp, pediu demonstração na quinta."
               />
             </label>
-            <button className="primary full" disabled={busy === "note" || !note.trim()}>
+            <button className="primary full history-submit-btn" disabled={busy === "note" || !note.trim()}>
               <MessageSquareText size={16} />
               {busy === "note" ? "Salvando…" : "Salvar no histórico"}
             </button>
           </form>
 
           <div className="timeline">
-            {lead.interactions.map((interaction) => {
-              const lower = interaction.content.toLowerCase();
-              const isWa = lower.includes("whatsapp");
-              const isProposal = lower.includes("proposta");
-              const isMaps = lower.includes("maps");
-              const isFollowup = lower.includes("follow-up") || lower.includes("contato");
-              return (
-                <div key={interaction.id} className="timeline-item">
-                  <div className={`timeline-icon-badge ${isWa ? "wa" : isProposal ? "proposal" : isMaps ? "maps" : isFollowup ? "followup" : ""}`}>
-                    {isWa ? (
-                      <MessageCircle size={12} />
-                    ) : isProposal ? (
-                      <FileText size={12} />
-                    ) : isMaps ? (
-                      <MapPin size={12} />
-                    ) : (
-                      <CalendarClock size={12} />
-                    )}
+            {lead.interactions.length === 0 ? (
+              <div className="timeline-empty-state">
+                <CalendarClock size={18} className="timeline-empty-icon" />
+                <span>Nenhuma interação registrada ainda. Use os botões de abordagem ou anote acima.</span>
+              </div>
+            ) : (
+              lead.interactions.map((interaction) => {
+                const lower = interaction.content.toLowerCase();
+                const isWa = lower.includes("whatsapp");
+                const isProposal = lower.includes("proposta");
+                const isMaps = lower.includes("maps");
+                const isFollowup = lower.includes("follow-up") || lower.includes("contato");
+                return (
+                  <div key={interaction.id} className="timeline-item">
+                    <div className={`timeline-icon-badge ${isWa ? "wa" : isProposal ? "proposal" : isMaps ? "maps" : isFollowup ? "followup" : ""}`}>
+                      {isWa ? (
+                        <MessageCircle size={12} />
+                      ) : isProposal ? (
+                        <FileText size={12} />
+                      ) : isMaps ? (
+                        <MapPin size={12} />
+                      ) : (
+                        <CalendarClock size={12} />
+                      )}
+                    </div>
+                    <div className="timeline-content">
+                      <small className="timeline-date">
+                        {new Date(interaction.createdAt).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </small>
+                      <p className="timeline-text">{interaction.content}</p>
+                    </div>
                   </div>
-                  <div className="timeline-content">
-                    <small>
-                      {new Date(interaction.createdAt).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </small>
-                    <p>{interaction.content}</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </section>
       </div>

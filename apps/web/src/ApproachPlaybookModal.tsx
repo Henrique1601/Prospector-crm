@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   Check,
+  ChevronDown,
   Copy,
   ExternalLink,
   Flame,
@@ -10,6 +11,7 @@ import {
   Layers,
   MessageCircle,
   PhoneCall,
+  Search,
   Sparkles,
   Target,
   UserCheck,
@@ -223,10 +225,42 @@ export function ApproachPlaybookModal({
   const [selectedLeadId, setSelectedLeadId] = useState<string>(currentLead?.id || (leads[0]?.id ?? ""));
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Estados do Dropdown Customizado de Leads
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [leadSearchQuery, setLeadSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o dropdown se clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   // Dados do lead selecionado
   const activeLead = useMemo(() => {
     return leads.find((l) => l.id === selectedLeadId) || currentLead || null;
   }, [leads, selectedLeadId, currentLead]);
+
+  // Lista filtrada para busca rápida
+  const filteredLeads = useMemo(() => {
+    if (!leadSearchQuery.trim()) return leads;
+    const q = leadSearchQuery.toLowerCase();
+    return leads.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        (l.segment || "").toLowerCase().includes(q) ||
+        (l.city || "").toLowerCase().includes(q)
+    );
+  }, [leads, leadSearchQuery]);
 
   const [customForm, setCustomForm] = useState({
     company: activeLead?.name || "Empresa Exemplo",
@@ -315,20 +349,119 @@ export function ApproachPlaybookModal({
         <div className="playbook-lead-selector">
           <div className="lead-selector-header">
             <UserCheck size={16} className="text-primary" />
-            <span>Personalizar com os dados do lead:</span>
+            <span>Personalizar abordagem com lead ativo:</span>
           </div>
-          <div className="lead-selector-controls">
-            <select
-              value={selectedLeadId}
-              onChange={(e) => handleLeadChange(e.target.value)}
-              className="lead-select-input"
-            >
-              {leads.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} ({l.segment} · {l.city}) {l.hasWhatsapp ? "🟢 WhatsApp" : ""}
-                </option>
-              ))}
-            </select>
+          <div className="lead-selector-controls" ref={dropdownRef}>
+            <div className="playbook-custom-select">
+              <button
+                type="button"
+                className={`custom-select-trigger ${isDropdownOpen ? "open" : ""}`}
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                aria-haspopup="listbox"
+                aria-expanded={isDropdownOpen}
+                aria-label="Selecionar empresa para personalizar abordagem"
+              >
+                <div className="trigger-lead-details">
+                  <div className="trigger-lead-avatar">
+                    {activeLead ? activeLead.name.substring(0, 2).toUpperCase() : "LD"}
+                  </div>
+                  <div className="trigger-lead-info">
+                    <div className="trigger-lead-name-row">
+                      <strong className="trigger-lead-name">
+                        {activeLead ? activeLead.name : "Selecione uma empresa..."}
+                      </strong>
+                      {activeLead?.hasWhatsapp && (
+                        <span className="trigger-wa-badge" title="Possui WhatsApp verificado">
+                          <MessageCircle size={11} /> WA
+                        </span>
+                      )}
+                      {activeLead?.score !== undefined && (
+                        <span className="trigger-score-badge">Score {activeLead.score}</span>
+                      )}
+                    </div>
+                    <span className="trigger-lead-meta">
+                      {activeLead?.segment || "Geral"} · {activeLead?.city || "Santos"}
+                    </span>
+                  </div>
+                </div>
+                <ChevronDown size={16} className={`trigger-chevron ${isDropdownOpen ? "rotate" : ""}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="custom-select-menu" role="listbox">
+                  <div className="select-search-box">
+                    <Search size={14} className="search-icon" />
+                    <input
+                      type="text"
+                      className="select-search-input"
+                      placeholder="Buscar por nome, nicho ou cidade..."
+                      value={leadSearchQuery}
+                      onChange={(e) => setLeadSearchQuery(e.target.value)}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    {leadSearchQuery && (
+                      <button
+                        type="button"
+                        className="clear-search-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLeadSearchQuery("");
+                        }}
+                        aria-label="Limpar busca"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="select-options-scroll">
+                    {filteredLeads.length === 0 ? (
+                      <div className="select-empty-msg">Nenhum lead encontrado para "{leadSearchQuery}"</div>
+                    ) : (
+                      filteredLeads.map((l) => {
+                        const isSelected = l.id === selectedLeadId;
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`custom-select-option ${isSelected ? "selected" : ""}`}
+                            onClick={() => {
+                              handleLeadChange(l.id);
+                              setIsDropdownOpen(false);
+                              setLeadSearchQuery("");
+                            }}
+                          >
+                            <div className="option-avatar">
+                              {l.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="option-body">
+                              <div className="option-title-row">
+                                <span className="option-name">{l.name}</span>
+                                <div className="option-tags">
+                                  {l.hasWhatsapp && (
+                                    <span className="option-wa-pill">
+                                      <MessageCircle size={10} /> WA
+                                    </span>
+                                  )}
+                                  <span className="option-score-pill">Score {l.score}</span>
+                                </div>
+                              </div>
+                              <span className="option-sub">
+                                {l.segment} · {l.city}
+                              </span>
+                            </div>
+                            {isSelected && <Check size={15} className="option-check-icon" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

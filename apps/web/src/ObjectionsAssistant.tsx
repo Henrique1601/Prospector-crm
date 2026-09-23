@@ -63,11 +63,14 @@ export function ObjectionsAssistant({ lead, onLoggedInteraction }: ObjectionsAss
   return (
     <div className="objections-assistant-card">
       <div className="objections-header">
-        <div className="objections-title">
-          <ShieldAlert size={16} />
-          <strong>Assistente de Objeções (WhatsApp)</strong>
+        <div className="objections-title-row">
+          <div className="objections-title">
+            <ShieldAlert size={16} className="objections-icon" />
+            <strong>Assistente de Objeções (WhatsApp)</strong>
+          </div>
+          <span className="objections-counter-badge">{objections.length} contornos</span>
         </div>
-        <small>Argumentos prontos para destravar o fechamento</small>
+        <small className="objections-subtitle">Argumentos prontos e validados para destravar o fechamento no WhatsApp</small>
       </div>
 
       <div className="objections-list">
@@ -87,21 +90,23 @@ export function ObjectionsAssistant({ lead, onLoggedInteraction }: ObjectionsAss
               >
                 <div className="objection-trigger-text">
                   <span className="objection-tag">{item.tag}</span>
-                  <strong>{item.title}</strong>
+                  <strong className="objection-title-text">{item.title}</strong>
                 </div>
-                {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {isOpen ? <ChevronUp size={16} className="objection-chevron" /> : <ChevronDown size={16} className="objection-chevron" />}
               </button>
 
               {isOpen && (
                 <div className="objection-content">
-                  <p className="objection-text">{item.response}</p>
+                  <div className="objection-quote-box">
+                    <p className="objection-text">{item.response}</p>
+                  </div>
                   <div className="objection-actions">
                     <button
                       type="button"
-                      className="btn-objection-action"
+                      className={`btn-objection-action ${isCopied ? "copied" : ""}`}
                       onClick={() => handleCopy(item)}
                     >
-                      {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                      {isCopied ? <Check size={14} className="copied-icon" /> : <Copy size={14} />}
                       <span>{isCopied ? "Copiado!" : "Copiar resposta"}</span>
                     </button>
 
