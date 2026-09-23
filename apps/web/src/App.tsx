@@ -9,8 +9,12 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   Check,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleGauge,
+  Command,
   Compass,
   Copy,
   Download,
@@ -33,7 +37,9 @@ import {
   Save,
   Search,
   Send,
+  SlidersHorizontal,
   Sparkles,
+  Table as TableIcon,
   Target,
   TrendingUp,
   Users,
@@ -47,6 +53,9 @@ import { ApproachPlaybookModal } from "./ApproachPlaybookModal";
 import { DailyProspectingModal } from "./DailyProspectingModal";
 import { WebhookDocModal } from "./WebhookDocModal";
 import { AnalyticsModal } from "./AnalyticsModal";
+import { CommandPalette } from "./CommandPalette";
+import { KanbanBoard } from "./KanbanBoard";
+import { triggerConfetti } from "./Confetti";
 import type { DashboardData, Lead, Stage } from "./types";
 
 const stageLabels: Record<Stage, string> = {
@@ -482,7 +491,13 @@ function LeadDrawer({
             <span>Estágio do relacionamento</span>
             <select
               value={lead.stage}
-              onChange={(e) => act("stage", () => api.stage(lead.id, e.target.value as Stage))}
+              onChange={(e) => {
+                const nextStage = e.target.value as Stage;
+                if (nextStage === "won") {
+                  triggerConfetti();
+                }
+                act("stage", () => api.stage(lead.id, nextStage));
+              }}
             >
               {mainStages.concat("lost").map((stage) => (
                 <option key={stage} value={stage}>
@@ -618,15 +633,39 @@ function LeadDrawer({
           </form>
 
           <div className="timeline">
-            {lead.interactions.map((interaction) => (
-              <div key={interaction.id} className="timeline-item">
-                <span className="dot" />
-                <div>
-                  <small>{new Date(interaction.createdAt).toLocaleDateString("pt-BR")}</small>
-                  <p>{interaction.content}</p>
+            {lead.interactions.map((interaction) => {
+              const lower = interaction.content.toLowerCase();
+              const isWa = lower.includes("whatsapp");
+              const isProposal = lower.includes("proposta");
+              const isMaps = lower.includes("maps");
+              const isFollowup = lower.includes("follow-up") || lower.includes("contato");
+              return (
+                <div key={interaction.id} className="timeline-item">
+                  <div className={`timeline-icon-badge ${isWa ? "wa" : isProposal ? "proposal" : isMaps ? "maps" : isFollowup ? "followup" : ""}`}>
+                    {isWa ? (
+                      <MessageCircle size={12} />
+                    ) : isProposal ? (
+                      <FileText size={12} />
+                    ) : isMaps ? (
+                      <MapPin size={12} />
+                    ) : (
+                      <CalendarClock size={12} />
+                    )}
+                  </div>
+                  <div className="timeline-content">
+                    <small>
+                      {new Date(interaction.createdAt).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </small>
+                    <p>{interaction.content}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       </div>
@@ -807,6 +846,16 @@ export function App() {
   const [webhookDocOpen, setWebhookDocOpen] = useState(false);
   const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
 
+  // New navigation & productivity states
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("prospector_sidebar_collapsed") === "true";
+  });
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
+    return (localStorage.getItem("prospector_view_mode") as "table" | "kanban") || "table";
+  });
+  const [followupDropdownOpen, setFollowupDropdownOpen] = useState(false);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Stage | "all">("all");
   type QuickFilter = "all" | "no-site" | "with-whatsapp" | "today-followup" | "high-priority";
@@ -817,6 +866,19 @@ export function App() {
   const [aiMode, setAiMode] = useState("local");
   const [storageMode, setStorageMode] = useState<"local-file" | "temporary" | "neon">("local-file");
   const [error, setError] = useState("");
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("prospector_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
+  const handleViewModeChange = (mode: "table" | "kanban") => {
+    setViewMode(mode);
+    localStorage.setItem("prospector_view_mode", mode);
+  };
 
   const load = async () => {
     try {
@@ -832,6 +894,22 @@ export function App() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  // Global Keyboard Shortcuts (Ctrl+K = Command Palette, Ctrl+B = Sidebar)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const todayIsoStr = useMemo(() => {
@@ -899,6 +977,15 @@ export function App() {
     void load();
   };
 
+  const handleUpdateStage = async (leadId: string, newStage: Stage) => {
+    try {
+      const updated = await api.stage(leadId, newStage);
+      changed(updated);
+    } catch (err) {
+      console.error("Falha ao atualizar estágio:", err);
+    }
+  };
+
   const analyzeNext = async () => {
     const lead = leads.find((item) => item.stage === "new");
     if (!lead) return;
@@ -912,83 +999,144 @@ export function App() {
     month: "long"
   }).format(new Date());
 
+  // Daily target calculation
+  const dailyTargetCount = 10;
+  const contactedTodayCount = Math.min(quickCounts.withWhatsapp, dailyTargetCount);
+  const dailyProgressPercent = Math.min(100, Math.round((contactedTodayCount / dailyTargetCount) * 100));
+
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <a className="brand" href="#top" aria-label="Prospector">
-          <span>
-            <CircleGauge />
-          </span>
-          <div>
-            <strong>prospector</strong>
-            <small>por Henrique</small>
+    <div className={`shell ${sidebarCollapsed ? "shell-sidebar-collapsed" : ""}`}>
+      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-top-row">
+          <a className="brand" href="#top" aria-label="Prospector">
+            <span>
+              <CircleGauge />
+            </span>
+            {!sidebarCollapsed && (
+              <div>
+                <strong>prospector</strong>
+                <small>por Henrique</small>
+              </div>
+            )}
+          </a>
+          <button
+            type="button"
+            className="sidebar-collapse-toggle-btn"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Expandir sidebar (Ctrl+B)" : "Recolher sidebar (Ctrl+B)"}
+            aria-label={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          </button>
+        </div>
+
+        <nav aria-label="Menu lateral">
+          <div className="sidebar-section">
+            {!sidebarCollapsed && <span className="sidebar-section-title">Comercial</span>}
+            <a className="active" href="#top" title="Visão geral">
+              <LayoutDashboard size={18} />
+              {!sidebarCollapsed && <span>Visão geral</span>}
+            </a>
+            <a href="#pipeline" title="Leads">
+              <Users size={18} />
+              {!sidebarCollapsed && <span>Leads</span>}
+            </a>
+            <a href="#followups" title="Follow-ups">
+              <CalendarClock size={18} />
+              {!sidebarCollapsed && <span>Follow-ups</span>}
+            </a>
           </div>
-        </a>
-        <nav>
-          <a className="active" href="#top">
-            <LayoutDashboard />
-            Visão geral
-          </a>
-          <a href="#pipeline">
-            <Users />
-            Leads
-          </a>
-          <a href="#followups">
-            <CalendarClock />
-            Follow-ups
-          </a>
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={() => setApproachPlaybookOpen(true)}
-          >
-            <BookOpen />
-            Playbook Abordagens
-          </button>
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={() => setProspectingOpen(true)}
-          >
-            <Compass />
-            Radar & Rotina
-          </button>
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={() => setWebhookDocOpen(true)}
-          >
-            <Plug />
-            Webhook Leads
-          </button>
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={() => setAnalyticsModalOpen(true)}
-          >
-            <BarChart3 />
-            Analytics Detalhado
-          </button>
+
+          <div className="sidebar-section">
+            {!sidebarCollapsed && <span className="sidebar-section-title">Inteligência</span>}
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={() => setApproachPlaybookOpen(true)}
+              title="Playbook de Abordagens"
+            >
+              <BookOpen size={18} />
+              {!sidebarCollapsed && <span>Playbook</span>}
+            </button>
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={() => setProspectingOpen(true)}
+              title="Radar & Rotina Diária"
+            >
+              <Compass size={18} />
+              {!sidebarCollapsed && <span>Rotina Diária</span>}
+            </button>
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={() => setAnalyticsModalOpen(true)}
+              title="Analytics Detalhado"
+            >
+              <BarChart3 size={18} />
+              {!sidebarCollapsed && <span>Analytics</span>}
+            </button>
+          </div>
+
+          <div className="sidebar-section">
+            {!sidebarCollapsed && <span className="sidebar-section-title">Automação</span>}
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={() => setWebhookDocOpen(true)}
+              title="Webhook Leads"
+            >
+              <Plug size={18} />
+              {!sidebarCollapsed && <span>Webhook</span>}
+            </button>
+          </div>
         </nav>
-        <div className="agent-card">
-          <div>
-            <Bot />
-            <span className="live-dot" />
+
+        {!sidebarCollapsed ? (
+          <>
+            <div className="sidebar-health-badges">
+              <div className="health-badge-row" title="Banco de dados Serverless Postgres">
+                <span className="live-dot" />
+                <small>Neon DB: {storageMode === "neon" ? "Conectado" : "Local"}</small>
+              </div>
+              <div className="health-badge-row" title="Módulo de Inteligência Artificial">
+                <span className="live-dot ai" />
+                <small>Gemini AI: {aiMode === "aisa" ? "Online" : "Local"}</small>
+              </div>
+            </div>
+
+            <div className="agent-card">
+              <div>
+                <Bot />
+                <span className="live-dot" />
+              </div>
+              <strong>Agente em modo {aiMode === "aisa" ? "AIsa" : "local"}</strong>
+              <p>
+                {aiMode === "aisa"
+                  ? "Pronto para gerar análises com IA."
+                  : "Simulação segura, sem consumo de créditos."}
+              </p>
+            </div>
+
+            <div className="profile">
+              <span>HB</span>
+              <div>
+                <strong>Henrique Bezerra</strong>
+                <small>Desenvolvedor Full-Stack</small>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="sidebar-collapsed-footer">
+            <button
+              type="button"
+              className="sidebar-avatar-btn"
+              title="Henrique Bezerra - Desenvolvedor Full-Stack"
+            >
+              HB
+            </button>
           </div>
-          <strong>Agente em modo {aiMode === "aisa" ? "AIsa" : "local"}</strong>
-          <p>
-            {aiMode === "aisa"
-              ? "Pronto para gerar análises com IA."
-              : "Simulação segura, sem consumo de créditos."}
-          </p>
-        </div>
-        <div className="profile">
-          <span>HB</span>
-          <div>
-            <strong>Henrique Bezerra</strong>
-            <small>Desenvolvedor Full-Stack</small>
-          </div>
-        </div>
+        )}
       </aside>
 
       <main id="top">
@@ -998,21 +1146,99 @@ export function App() {
             <h1>Seu radar comercial</h1>
             <p>Veja os sinais mais promissores e decida o próximo movimento.</p>
           </div>
+
           <div className="topbar-actions">
-            {todayFollowUps.length > 0 && (
+            {/* Command Palette Trigger */}
+            <button
+              type="button"
+              className="topbar-command-trigger"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              title="Abrir busca rápida e comandos (Ctrl+K)"
+            >
+              <Search size={14} />
+              <span>Buscar ou comando…</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+
+            {/* Gamified Daily Target Pill */}
+            <div
+              className="topbar-gamified-goal"
+              onClick={() => setProspectingOpen(true)}
+              title="Meta diária de prospecção. Clique para abrir rotina completa."
+            >
+              <div className="goal-icon">
+                <Target size={14} />
+              </div>
+              <div className="goal-info">
+                <span>Meta Hoje</span>
+                <strong>{contactedTodayCount}/{dailyTargetCount} contatos</strong>
+              </div>
+              <div className="goal-progress-bar">
+                <div className="goal-progress-fill" style={{ width: `${dailyProgressPercent}%` }} />
+              </div>
+            </div>
+
+            {/* Notification Bell with Floating Dropdown */}
+            <div className="followup-bell-container">
               <button
                 type="button"
-                className="topbar-alert-badge"
-                onClick={() => {
-                  setQuickFilter("today-followup");
-                  document.getElementById("pipeline")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                title="Filtrar follow-ups agendados para hoje ou pendentes"
+                className={`topbar-alert-badge ${todayFollowUps.length > 0 ? "has-alert" : ""}`}
+                onClick={() => setFollowupDropdownOpen(!followupDropdownOpen)}
+                title="Ver follow-ups agendados para hoje"
               >
                 <Bell size={15} />
-                <span>{todayFollowUps.length} follow-up{todayFollowUps.length === 1 ? "" : "s"} para hoje</span>
+                <span>{todayFollowUps.length} follow-up{todayFollowUps.length === 1 ? "" : "s"}</span>
               </button>
-            )}
+
+              {followupDropdownOpen && (
+                <div className="followup-dropdown-popover">
+                  <div className="popover-header">
+                    <strong>Follow-ups para hoje ({todayFollowUps.length})</strong>
+                    <button
+                      type="button"
+                      className="close-popover-btn"
+                      onClick={() => setFollowupDropdownOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <div className="popover-list">
+                    {todayFollowUps.length > 0 ? (
+                      todayFollowUps.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="popover-lead-item"
+                          onClick={() => {
+                            setSelected(lead);
+                            setFollowupDropdownOpen(false);
+                          }}
+                        >
+                          <div className="popover-lead-info">
+                            <strong>{lead.name}</strong>
+                            <small>{lead.nextAction || `${lead.segment} · ${lead.city}`}</small>
+                          </div>
+                          {lead.hasWhatsapp && lead.whatsappUrl && (
+                            <a
+                              href={lead.whatsappUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="popover-wa-btn"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Abrir WhatsApp"
+                            >
+                              <MessageCircle size={13} />
+                            </a>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="popover-empty">Nenhum retorno agendado pendente para hoje! 🎉</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
@@ -1158,6 +1384,27 @@ export function App() {
             </div>
 
             <div className="smart-chips-secondary">
+              <div className="view-mode-pill-toggle">
+                <button
+                  type="button"
+                  className={`view-mode-btn ${viewMode === "table" ? "active" : ""}`}
+                  onClick={() => handleViewModeChange("table")}
+                  title="Visualização Tabela"
+                >
+                  <TableIcon size={13} />
+                  <span>Tabela</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn ${viewMode === "kanban" ? "active" : ""}`}
+                  onClick={() => handleViewModeChange("kanban")}
+                  title="Visualização Pipeline Kanban"
+                >
+                  <LayoutDashboard size={13} />
+                  <span>Kanban</span>
+                </button>
+              </div>
+
               {cities.length > 1 && (
                 <select
                   className="city-filter-select"
@@ -1185,98 +1432,139 @@ export function App() {
             </div>
           </div>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Empresa</th>
-                  <th>Contato</th>
-                  <th>Sinal</th>
-                  <th>Estágio</th>
-                  <th>Próxima ação</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((lead) => (
-                  <tr key={lead.id} onClick={() => setSelected(lead)}>
-                    <td>
-                      <div className="company">
-                        <span>{lead.name.slice(0, 2).toUpperCase()}</span>
-                        <div>
-                          <strong>
-                            {lead.name}
-                            {lead.demoUrl && (
-                              <span className="demo-live-badge" style={{ marginLeft: "6px", fontSize: "9px", padding: "1px 5px" }}>
-                                Demo
-                              </span>
-                            )}
-                          </strong>
-                          <small>
-                            {lead.segment} · {lead.city} {lead.website ? "· com site" : "· sem site"}
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="table-contact-cell">
-                        {lead.hasWhatsapp && lead.whatsappUrl ? (
-                          <a
-                            href={lead.whatsappUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="table-wa-link"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Conversar no WhatsApp"
-                          >
-                            <MessageCircle size={14} /> WhatsApp
-                          </a>
-                        ) : lead.phone ? (
-                          <span className="table-phone-text">{lead.phone}</span>
-                        ) : (
-                          <span className="muted">–</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="score-cell">
-                        <Score value={lead.score} />
-                        <span className={`priority priority-${lead.priority}`}>
-                          {lead.priority === "urgent"
-                            ? "Urgente"
-                            : lead.priority === "high"
-                            ? "Alta"
-                            : lead.score
-                            ? "Média"
-                            : "A avaliar"}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <StagePill stage={lead.stage} />
-                    </td>
-                    <td>
-                      <span className="next-action">
-                        {lead.nextAction || "Pesquisar presença digital"}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="icon-button" aria-label={`Abrir ${lead.name}`}>
-                        <ChevronRight />
-                      </button>
-                    </td>
+          {viewMode === "kanban" ? (
+            <KanbanBoard
+              leads={visible}
+              onSelectLead={setSelected}
+              onUpdateStage={handleUpdateStage}
+            />
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Empresa</th>
+                    <th>Contato</th>
+                    <th>Sinal</th>
+                    <th>Estágio</th>
+                    <th>Próxima ação</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {!visible.length && (
-              <div className="empty-state">
-                <Search />
-                <h3>Nenhum lead encontrado</h3>
-                <p>Ajuste a busca ou volte a exibir todos os estágios.</p>
-              </div>
-            )}
-          </div>
+                </thead>
+                <tbody>
+                  {visible.map((lead) => (
+                    <tr key={lead.id} onClick={() => setSelected(lead)}>
+                      <td>
+                        <div className="company">
+                          <span>{lead.name.slice(0, 2).toUpperCase()}</span>
+                          <div>
+                            <strong>
+                              {lead.name}
+                              {lead.demoUrl && (
+                                <span className="demo-live-badge" style={{ marginLeft: "6px", fontSize: "9px", padding: "1px 5px" }}>
+                                  Demo
+                                </span>
+                              )}
+                            </strong>
+                            <small>
+                              {lead.segment} · {lead.city} {lead.website ? "· com site" : "· sem site"}
+                            </small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="table-contact-cell">
+                          {lead.hasWhatsapp && lead.whatsappUrl ? (
+                            <a
+                              href={lead.whatsappUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="table-wa-link"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Conversar no WhatsApp"
+                            >
+                              <MessageCircle size={14} /> WhatsApp
+                            </a>
+                          ) : lead.phone ? (
+                            <span className="table-phone-text">{lead.phone}</span>
+                          ) : (
+                            <span className="muted">–</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="score-cell">
+                          <Score value={lead.score} />
+                          <span className={`priority priority-${lead.priority}`}>
+                            {lead.priority === "urgent"
+                              ? "Urgente"
+                              : lead.priority === "high"
+                              ? "Alta"
+                              : lead.score
+                              ? "Média"
+                              : "A avaliar"}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <StagePill stage={lead.stage} />
+                      </td>
+                      <td>
+                        <span className="next-action">
+                          {lead.nextAction || "Pesquisar presença digital"}
+                        </span>
+                      </td>
+                      <td className="actions-cell">
+                        <div className="row-hover-actions">
+                          {lead.hasWhatsapp && lead.whatsappUrl && (
+                            <a
+                              href={lead.whatsappUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="row-action-btn wa"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Conversar no WhatsApp"
+                            >
+                              <MessageCircle size={14} />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="row-action-btn proposal"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProposalModalLead(lead);
+                            }}
+                            title="Gerar Proposta Comercial"
+                          >
+                            <FileText size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            aria-label={`Abrir ${lead.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(lead);
+                            }}
+                          >
+                            <ChevronRight />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!visible.length && (
+                <div className="empty-state">
+                  <Search />
+                  <h3>Nenhum lead encontrado</h3>
+                  <p>Ajuste a busca ou volte a exibir todos os estágios.</p>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="command">
@@ -1417,13 +1705,14 @@ export function App() {
           <Users />
           <span>Leads</span>
         </a>
+        <a href="#followups">
+          <CalendarClock />
+          <span>Follow-ups</span>
+          {followUps.length > 0 && <b>{followUps.length}</b>}
+        </a>
         <button type="button" onClick={() => setApproachPlaybookOpen(true)}>
           <BookOpen />
           <span>Abordagens</span>
-        </button>
-        <button type="button" onClick={() => setProspectingOpen(true)}>
-          <Compass />
-          <span>Rotina</span>
         </button>
         <button type="button" onClick={() => setAnalyticsModalOpen(true)}>
           <BarChart3 />
@@ -1515,6 +1804,23 @@ export function App() {
           }}
         />
       )}
+
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        leads={leads}
+        onSelectLead={(lead) => {
+          setSelected(lead);
+          setIsCommandPaletteOpen(false);
+        }}
+        onOpenCreateModal={() => setAddOpen(true)}
+        onOpenBatchModal={() => setBatchOpen(true)}
+        onOpenPlaybook={() => setApproachPlaybookOpen(true)}
+        onOpenDaily={() => setProspectingOpen(true)}
+        onOpenAnalytics={() => setAnalyticsModalOpen(true)}
+        onToggleViewMode={() => handleViewModeChange(viewMode === "table" ? "kanban" : "table")}
+        viewMode={viewMode}
+      />
     </div>
   );
 }
