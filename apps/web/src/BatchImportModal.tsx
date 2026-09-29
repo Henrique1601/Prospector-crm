@@ -3,33 +3,49 @@ import {
   AlertTriangle,
   Check,
   CheckSquare,
+  Compass,
+  Copy,
   Database,
   ExternalLink,
+  FileCode,
   FileSpreadsheet,
   Globe,
   Loader2,
   MapPin,
   MessageCircle,
   Phone,
+  Search,
   Sparkles,
   Square,
+  Terminal,
   Trash2,
   UploadCloud,
   X
 } from "lucide-react";
 import { api } from "./api";
-import type { Lead, ResolvedPlacePreview } from "./types";
+import type { Lead, ResolvedPlacePreview, ScraperQueryResult } from "./types";
 
 interface BatchImportModalProps {
   onClose: () => void;
   onImported: (newLeads: Lead[]) => void;
 }
 
-type ImportTab = "maps" | "csv" | "notion";
+type ImportTab = "scraper" | "maps" | "csv" | "notion";
 
 export function BatchImportModal({ onClose, onImported }: BatchImportModalProps) {
-  const [activeTab, setActiveTab] = useState<ImportTab>("maps");
+  const [activeTab, setActiveTab] = useState<ImportTab>("scraper");
   const [step, setStep] = useState<"input" | "review">("input");
+
+  // Google Maps Scraper tab state
+  const [scraperMode, setScraperMode] = useState<"file" | "live" | "queries">("file");
+  const [scraperContent, setScraperContent] = useState("");
+  const [scraperFileName, setScraperFileName] = useState("");
+  const [scraperQuery, setScraperQuery] = useState("clinica odontologica");
+  const [scraperCity, setScraperCity] = useState("Santos");
+  const [scraperCount, setScraperCount] = useState(10);
+  const [generatedQueries, setGeneratedQueries] = useState<ScraperQueryResult | null>(null);
+  const [copiedQuery, setCopiedQuery] = useState(false);
+  const [copiedDocker, setCopiedDocker] = useState(false);
 
   // Maps tab state
   const [mapsText, setMapsText] = useState("");
@@ -104,6 +120,104 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleProcessScraperFile = async (contentToUse?: string) => {
+    const text = contentToUse || scraperContent;
+    if (!text.trim()) {
+      setError("Conteúdo vazio. Cole o JSON Lines ou CSV do scraper, ou carregue um arquivo.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const results = await api.previewScraper(text);
+      if (!results.length) {
+        setError("Nenhum dado reconhecido no formato do Google Maps Scraper (JSON Lines ou CSV).");
+        return;
+      }
+      showReview(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao ler arquivo do Google Maps Scraper");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLiveScrape = async () => {
+    if (!scraperQuery.trim()) {
+      setError("Informe o segmento ou palavra-chave para a busca.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const results = await api.liveScrape(scraperQuery.trim(), scraperCity, scraperCount);
+      if (!results.length) {
+        setError(`Nenhuma empresa encontrada para "${scraperQuery}" em ${scraperCity}.`);
+        return;
+      }
+      showReview(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao realizar busca no Google Maps");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateQueries = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.generateScraperQueries(scraperQuery.trim() || "clinica odontologica", [
+        scraperCity,
+        "Santos",
+        "São Vicente",
+        "Praia Grande",
+        "Guarujá"
+      ]);
+      setGeneratedQueries(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao gerar queries");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyQueries = async () => {
+    if (!generatedQueries) return;
+    await navigator.clipboard.writeText(generatedQueries.queriesText);
+    setCopiedQuery(true);
+    setTimeout(() => setCopiedQuery(false), 2000);
+  };
+
+  const copyDocker = async () => {
+    if (!generatedQueries) return;
+    await navigator.clipboard.writeText(generatedQueries.dockerCommand);
+    setCopiedDocker(true);
+    setTimeout(() => setCopiedDocker(false), 2000);
+  };
+
+  const handleScraperFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) readScraperFile(file);
+  };
+
+  const handleScraperFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) readScraperFile(file);
+  };
+
+  const readScraperFile = (file: File) => {
+    setScraperFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = String(event.target?.result || "");
+      setScraperContent(text);
+      void handleProcessScraperFile(text);
+    };
+    reader.readAsText(file);
   };
 
   const handleProcessNotion = async () => {
@@ -290,10 +404,17 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
             <div className="import-tabs" role="tablist">
               <button
                 type="button"
+                className={`tab-btn ${activeTab === "scraper" ? "active" : ""}`}
+                onClick={() => { setActiveTab("scraper"); setError(""); }}
+              >
+                <Compass size={16} /> Google Maps Scraper
+              </button>
+              <button
+                type="button"
                 className={`tab-btn ${activeTab === "maps" ? "active" : ""}`}
                 onClick={() => { setActiveTab("maps"); setError(""); }}
               >
-                <MapPin size={16} /> Google Maps
+                <MapPin size={16} /> Links do Maps
               </button>
               <button
                 type="button"
@@ -311,7 +432,221 @@ export function BatchImportModal({ onClose, onImported }: BatchImportModalProps)
               </button>
             </div>
 
-            {/* TAB 1: GOOGLE MAPS */}
+            {/* TAB 0: GOOGLE MAPS SCRAPER (GOSOM & DIRECT) */}
+            {activeTab === "scraper" && (
+              <div className="tab-content scraper-tab-content">
+                <div className="scraper-submode-bar">
+                  <button
+                    type="button"
+                    className={`submode-btn ${scraperMode === "file" ? "active" : ""}`}
+                    onClick={() => { setScraperMode("file"); setError(""); }}
+                  >
+                    <FileCode size={14} /> Importar Arquivo (JSONL / CSV)
+                  </button>
+                  <button
+                    type="button"
+                    className={`submode-btn ${scraperMode === "live" ? "active" : ""}`}
+                    onClick={() => { setScraperMode("live"); setError(""); }}
+                  >
+                    <Search size={14} /> Busca Direta sem Docker (Live)
+                  </button>
+                  <button
+                    type="button"
+                    className={`submode-btn ${scraperMode === "queries" ? "active" : ""}`}
+                    onClick={() => { setScraperMode("queries"); setError(""); if (!generatedQueries) void handleGenerateQueries(); }}
+                  >
+                    <Terminal size={14} /> Gerador de Queries & Docker
+                  </button>
+                </div>
+
+                {scraperMode === "file" && (
+                  <div className="scraper-file-subview">
+                    <p className="batch-helper-text">
+                      Importe diretamente o arquivo de saída gerado pelo <strong>gosom/google-maps-scraper</strong> (<code>results.json</code> ou <code>results.csv</code>) ou cole o conteúdo bruto.
+                    </p>
+
+                    <div
+                      className={`csv-dropzone ${scraperFileName ? "has-file" : ""}`}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleScraperFileDrop}
+                    >
+                      <input
+                        type="file"
+                        id="scraper-file-input"
+                        accept=".json,.jsonl,.csv,.txt"
+                        onChange={handleScraperFileInput}
+                        style={{ display: "none" }}
+                      />
+                      <label htmlFor="scraper-file-input" className="dropzone-label">
+                        <UploadCloud size={32} />
+                        {scraperFileName ? (
+                          <>
+                            <strong>{scraperFileName}</strong>
+                            <small>Clique para trocar de arquivo</small>
+                          </>
+                        ) : (
+                          <>
+                            <strong>Arraste o arquivo results.json ou results.csv aqui</strong>
+                            <small>ou clique para selecionar do seu computador (.json, .jsonl, .csv)</small>
+                          </>
+                        )}
+                      </label>
+                    </div>
+
+                    <div className="divider-label">
+                      <span>ou cole as linhas de JSON / CSV abaixo</span>
+                    </div>
+
+                    <label className="field">
+                      <textarea
+                        rows={5}
+                        value={scraperContent}
+                        onChange={(e) => setScraperContent(e.target.value)}
+                        placeholder={`Exemplo JSON Lines:\n{"title":"Sorriso VIP","category":"Dentista","phone":"(13) 99123-4567","address":"Av. Ana Costa, 100 - Gonzaga, Santos - SP","review_rating":4.9,"review_count":85}\n\nOu CSV:\ntitle,category,phone,website,address,review_rating,review_count`}
+                        className="batch-textarea"
+                      />
+                    </label>
+
+                    <footer className="batch-actions">
+                      <button className="secondary" onClick={onClose}>Cancelar</button>
+                      <button
+                        className="primary"
+                        disabled={loading || !scraperContent.trim()}
+                        onClick={() => handleProcessScraperFile()}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 size={16} className="spin" /> Processando dados do Scraper…
+                          </>
+                        ) : (
+                          <>
+                            <Compass size={16} /> Processar Resultados do Scraper
+                          </>
+                        )}
+                      </button>
+                    </footer>
+                  </div>
+                )}
+
+                {scraperMode === "live" && (
+                  <div className="scraper-live-subview">
+                    <p className="batch-helper-text">
+                      Faça uma varredura direta no Google Maps em tempo real <strong>sem precisar do Docker instalado</strong>. Extrai contatos, notas e prepara para o pipeline do CRM.
+                    </p>
+
+                    <div className="scraper-grid-controls">
+                      <label className="field">
+                        <span>Segmento / Palavra-chave</span>
+                        <input
+                          type="text"
+                          value={scraperQuery}
+                          onChange={(e) => setScraperQuery(e.target.value)}
+                          placeholder="Ex.: Clínica odontológica, Imobiliária, Auto Center"
+                        />
+                      </label>
+
+                      <label className="field">
+                        <span>Cidade Alvo</span>
+                        <select value={scraperCity} onChange={(e) => setScraperCity(e.target.value)}>
+                          <option value="Santos">Santos (SP)</option>
+                          <option value="São Vicente">São Vicente (SP)</option>
+                          <option value="Praia Grande">Praia Grande (SP)</option>
+                          <option value="Guarujá">Guarujá (SP)</option>
+                          <option value="Cubatão">Cubatão (SP)</option>
+                          <option value="Bertioga">Bertioga (SP)</option>
+                        </select>
+                      </label>
+
+                      <label className="field">
+                        <span>Quantidade de Leads</span>
+                        <select value={scraperCount} onChange={(e) => setScraperCount(Number(e.target.value))}>
+                          <option value={5}>5 estabelecimentos</option>
+                          <option value={10}>10 estabelecimentos</option>
+                          <option value={15}>15 estabelecimentos</option>
+                          <option value={20}>20 estabelecimentos</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <footer className="batch-actions">
+                      <button className="secondary" onClick={onClose}>Cancelar</button>
+                      <button
+                        className="primary"
+                        disabled={loading || !scraperQuery.trim()}
+                        onClick={handleLiveScrape}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 size={16} className="spin" /> Varrendo Google Maps em tempo real…
+                          </>
+                        ) : (
+                          <>
+                            <Search size={16} /> Buscar no Google Maps Agora
+                          </>
+                        )}
+                      </button>
+                    </footer>
+                  </div>
+                )}
+
+                {scraperMode === "queries" && (
+                  <div className="scraper-queries-subview">
+                    <p className="batch-helper-text">
+                      Gere o arquivo <code>queries.txt</code> e o comando Docker pronto para rodar o <strong>gosom/google-maps-scraper</strong> em qualquer máquina ou VPS.
+                    </p>
+
+                    <div className="scraper-query-inputs-row">
+                      <label className="field flex-grow">
+                        <span>Nicho de Prospecção</span>
+                        <input
+                          type="text"
+                          value={scraperQuery}
+                          onChange={(e) => setScraperQuery(e.target.value)}
+                          placeholder="Ex.: clínica odontológica"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary btn-generate-queries"
+                        onClick={handleGenerateQueries}
+                        disabled={loading}
+                      >
+                        {loading ? <Loader2 size={14} className="spin" /> : <Terminal size={14} />}
+                        Gerar Queries
+                      </button>
+                    </div>
+
+                    {generatedQueries && (
+                      <div className="scraper-queries-output-box">
+                        <div className="query-output-header">
+                          <span>Queries Geradas para Baixada Santista ({generatedQueries.queries.length} buscas):</span>
+                          <button type="button" className="copy-action-btn" onClick={copyQueries}>
+                            {copiedQuery ? <Check size={13} /> : <Copy size={13} />}
+                            <span>{copiedQuery ? "Copiado!" : "Copiar Queries"}</span>
+                          </button>
+                        </div>
+                        <pre className="query-code-preview">{generatedQueries.queriesText}</pre>
+
+                        <div className="query-output-header docker-cmd-header">
+                          <span>Comando Docker Oficial (gosom/google-maps-scraper):</span>
+                          <button type="button" className="copy-action-btn" onClick={copyDocker}>
+                            {copiedDocker ? <Check size={13} /> : <Copy size={13} />}
+                            <span>{copiedDocker ? "Comando Copiado!" : "Copiar Comando Docker"}</span>
+                          </button>
+                        </div>
+                        <pre className="query-code-preview docker-code">{generatedQueries.dockerCommand}</pre>
+                      </div>
+                    )}
+
+                    <footer className="batch-actions">
+                      <button className="secondary" onClick={onClose}>Fechar</button>
+                    </footer>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 1: GOOGLE MAPS LINKS */}
             {activeTab === "maps" && (
               <div className="tab-content">
                 <p className="batch-helper-text">

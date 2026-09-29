@@ -71,6 +71,9 @@ export interface ResolvedPlacePreview {
   score?: number;
   priority?: Priority;
   suggestedMessage?: string;
+  rating?: number;
+  reviewsCount?: number;
+  emails?: string;
 }
 
 export interface DashboardData {
@@ -171,4 +174,11 @@ export interface PublicProposalData {
     deliveryTimeDays: number;
   };
   approvalWhatsappUrl: string;
+}
+
+export interface ScraperQueryResult {
+  queries: string[];
+  queriesText: string;
+  dockerCommand: string;
+  suggestedFileName: string;
 }

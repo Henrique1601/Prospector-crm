@@ -9,6 +9,7 @@
     "build": "npm run build -w @prospector/api && npm run build -w @prospector/web",
     "test": "npm run test -w @prospector/api && npm run test -w @prospector/web",
     "typecheck": "npm run typecheck -w @prospector/api && npm run typecheck -w @prospector/web",
+    "scrape:maps": "node scripts/scrape-maps.mjs",
     "brain:sync": "node scripts/sync-obsidian.mjs"
   },
   "devDependencies": {

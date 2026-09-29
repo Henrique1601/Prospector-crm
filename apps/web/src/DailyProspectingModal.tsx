@@ -3,6 +3,7 @@ import {
   Building2,
   Check,
   CheckSquare,
+  Compass,
   Copy,
   ExternalLink,
   Flame,
@@ -116,6 +117,20 @@ export function DailyProspectingModal({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
+  const [copiedScraperQueries, setCopiedScraperQueries] = useState(false);
+
+  const handleExportScraperQueries = async () => {
+    try {
+      const res = await api.generateScraperQueries(selectedNiche.keyword, [selectedCity.cityName, "Santos", "São Vicente", "Praia Grande"]);
+      await navigator.clipboard.writeText(res.queriesText);
+      setCopiedScraperQueries(true);
+      setTimeout(() => setCopiedScraperQueries(false), 2200);
+    } catch {
+      await navigator.clipboard.writeText(`${selectedNiche.keyword} em ${selectedCity.cityName} SP`);
+      setCopiedScraperQueries(true);
+      setTimeout(() => setCopiedScraperQueries(false), 2200);
+    }
+  };
 
   const mapsSearchUrl = `https://www.google.com/maps/search/${encodeURIComponent(
     `${selectedNiche.keyword} ${selectedCity.query}`
@@ -351,6 +366,15 @@ export function DailyProspectingModal({
                       >
                         <Sparkles size={18} />
                         <span>Puxar {leadCount} Empresas com IA</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary full btn-export-queries"
+                        onClick={handleExportScraperQueries}
+                        title="Gera e copia lista de queries por bairro formatada para o Google Maps Scraper"
+                      >
+                        {copiedScraperQueries ? <Check size={16} /> : <Compass size={16} />}
+                        <span>{copiedScraperQueries ? "Queries do Scraper Copiadas!" : "Exportar Queries para Google Maps Scraper"}</span>
                       </button>
                     </div>
                   </div>

@@ -6,6 +6,7 @@ import { analyzeWithAi, demoBrief, localAnalysis } from "./ai.js";
 import { fetchNotionDatabase, parseCsvToLeads } from "./importers.js";
 import { classifyWebsite, detectWhatsappAndPhone, resolveLeadWhatsapp, resolveMultipleMapsLinks } from "./maps.js";
 import { discoverProspectingLeads } from "./prospecting.js";
+import { generateScraperQueries, liveScrapeGoogleMaps, parseGoogleMapsScraperInput } from "./scraper.js";
 import { readStore, writeStore } from "./store.js";
 import { stages, type CityConversionStats, type ConversionAnalytics, type Lead, type SegmentConversionStats } from "./types.js";
 
@@ -217,6 +218,36 @@ app.post("/api/leads/preview/notion", async (req, res) => {
   const { apiKey, databaseId } = schema.parse(req.body);
   const store = await readStore();
   const results = await fetchNotionDatabase(apiKey, databaseId, store.leads);
+  res.json(results);
+});
+
+app.post("/api/scraper/preview", async (req, res) => {
+  const schema = z.object({ content: z.string().min(1) });
+  const { content } = schema.parse(req.body);
+  const store = await readStore();
+  const results = parseGoogleMapsScraperInput(content, store.leads);
+  res.json(results);
+});
+
+app.post("/api/scraper/generate-queries", (req, res) => {
+  const schema = z.object({
+    niche: z.string().default("clinica odontologica"),
+    cities: z.array(z.string()).optional()
+  });
+  const { niche, cities } = schema.parse(req.body);
+  const results = generateScraperQueries(niche, cities);
+  res.json(results);
+});
+
+app.post("/api/scraper/live", async (req, res) => {
+  const schema = z.object({
+    query: z.string().min(2),
+    city: z.string().default("Santos"),
+    count: z.number().int().min(1).max(20).default(10)
+  });
+  const { query, city, count } = schema.parse(req.body);
+  const store = await readStore();
+  const results = await liveScrapeGoogleMaps(query, city, count, store.leads);
   res.json(results);
 });
 
