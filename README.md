@@ -42,3 +42,16 @@ O monorepo usa dois projetos:
 - `api-prospector`: Root Directory `apps/api`. O arquivo `index.ts` exporta o Express como Vercel Function e o `vercel.json` encaminha todas as rotas para essa função.
 
 Em produção, a API usa Lakebase Postgres no Neon quando `DATABASE_URL` está configurada. A migração versionada está em `apps/api/migrations`. Sem essa variável, o desenvolvimento local continua usando `apps/api/data/store.json`; na Vercel, o fallback é temporário e aparece claramente na interface.
+
+## Integração segura de leads
+
+Automações externas devem usar exclusivamente `POST /api/integrations/leads`. O endpoint exige `Authorization: Bearer <INTEGRATION_API_KEY>`, aceita até 25 leads por chamada e ignora duplicatas por URL do Maps, telefone ou combinação de nome e cidade.
+
+Configure `INTEGRATION_API_KEY` apenas nas variáveis protegidas da API na Vercel. O endpoint falha de forma segura com `503` quando a chave não está configurada e nunca deve receber a chave pelo frontend.
+
+```bash
+curl -X POST "$API_URL/api/integrations/leads" \
+  -H "Authorization: Bearer $INTEGRATION_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"autoAnalyze":false,"leads":[{"name":"Empresa Exemplo","segment":"Oficina","city":"Santos","state":"SP","mapsUrl":"https://maps.google.com/..."}]}'
+```
