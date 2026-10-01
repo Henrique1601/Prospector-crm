@@ -55,3 +55,14 @@ curl -X POST "$API_URL/api/integrations/leads" \
   -H "Content-Type: application/json" \
   -d '{"autoAnalyze":false,"leads":[{"name":"Empresa Exemplo","segment":"Oficina","city":"Santos","state":"SP","mapsUrl":"https://maps.google.com/..."}]}'
 ```
+
+## Conector MCP
+
+O CRM também disponibiliza um servidor MCP remoto em `https://api-prospector-delta.vercel.app/api/mcp`. Ele usa Streamable HTTP stateless e exige o mesmo cabeçalho `Authorization: Bearer <INTEGRATION_API_KEY>`.
+
+Ferramentas publicadas:
+
+- `list_leads`: consulta o funil por texto, estágio e limite;
+- `create_leads`: cadastra até 25 empresas e reutiliza a deduplicação da API segura.
+
+A chave deve ser configurada no cliente MCP como credencial Bearer e nunca incluída na URL, no frontend ou no repositório.
