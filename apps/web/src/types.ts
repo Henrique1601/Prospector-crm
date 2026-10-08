@@ -182,3 +182,45 @@ export interface ScraperQueryResult {
   dockerCommand: string;
   suggestedFileName: string;
 }
+
+export interface McpToolInfo {
+  name: string;
+  title: string;
+  description: string;
+  readOnly: boolean;
+  parameters: string[];
+}
+
+export interface McpStatusResponse {
+  configured: boolean;
+  keyPrefix: string | null;
+  serverName: string;
+  version: string;
+  transport: string;
+  endpoint: string;
+  ingestionEndpoint: string;
+  tools: McpToolInfo[];
+  stats: {
+    totalLeads: number;
+    mcpLeadsCount: number;
+    recentMcpLeads: Array<{
+      id: string;
+      name: string;
+      segment: string;
+      city: string;
+      stage: Stage;
+      createdAt: string;
+    }>;
+  };
+}
+
+export interface McpTestResponse {
+  ok: boolean;
+  serverName?: string;
+  version?: string;
+  transport?: string;
+  endpoint?: string;
+  latencyMs: number;
+  toolsAvailable?: string[];
+  message: string;
+}

@@ -46,6 +46,91 @@ app.get("/api/notion/status", (_req, res) => {
   });
 });
 
+app.get("/api/mcp/status", async (_req, res) => {
+  const configuredKey = process.env.INTEGRATION_API_KEY;
+  const store = await readStore();
+  const mcpLeads = store.leads.filter((l) =>
+    l.sources?.some((s) => s.toLowerCase().includes("mcp") || s.toLowerCase().includes("integração") || s.toLowerCase().includes("integracao")) ||
+    l.interactions?.some((i) => i.content.toLowerCase().includes("mcp") || i.content.toLowerCase().includes("integração") || i.content.toLowerCase().includes("integracao"))
+  );
+
+  res.json({
+    configured: Boolean(configuredKey),
+    keyPrefix: configuredKey ? `${configuredKey.slice(0, 4)}...${configuredKey.slice(-4)}` : null,
+    serverName: "prospector-crm",
+    version: "1.0.0",
+    transport: "Streamable HTTP (JSON-RPC 2.0)",
+    endpoint: "/api/mcp",
+    ingestionEndpoint: "/api/integrations/leads",
+    tools: [
+      {
+        name: "list_leads",
+        title: "Listar leads do CRM",
+        description: "Consulta leads já cadastrados para acompanhar o funil e evitar duplicidades.",
+        readOnly: true,
+        parameters: ["query (opcional)", "stage (opcional)", "limit (padrão: 25)"]
+      },
+      {
+        name: "create_leads",
+        title: "Cadastrar leads no CRM",
+        description: "Cadastra de 1 a 25 leads e ignora duplicidades por Maps, telefone ou nome e cidade.",
+        readOnly: false,
+        parameters: ["leads (array de 1 a 25 leads)", "autoAnalyze (booleano, padrão: false)"]
+      }
+    ],
+    stats: {
+      totalLeads: store.leads.length,
+      mcpLeadsCount: mcpLeads.length,
+      recentMcpLeads: mcpLeads.slice(0, 10).map((l) => ({
+        id: l.id,
+        name: l.name,
+        segment: l.segment,
+        city: l.city,
+        stage: l.stage,
+        createdAt: l.createdAt
+      }))
+    }
+  });
+});
+
+app.post("/api/mcp/test-connection", async (req, res) => {
+  const start = performance.now();
+  const configuredKey = process.env.INTEGRATION_API_KEY;
+  const schema = z.object({ token: z.string().optional() });
+  const { token } = schema.parse(req.body || {});
+
+  if (!configuredKey) {
+    return res.status(503).json({
+      ok: false,
+      message: "INTEGRATION_API_KEY não configurada nas variáveis de ambiente do servidor.",
+      latencyMs: Math.round(performance.now() - start)
+    });
+  }
+
+  if (token) {
+    const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+    if (!isValidIntegrationToken(authHeader, configuredKey)) {
+      return res.status(401).json({
+        ok: false,
+        message: "O token fornecido não confere com a INTEGRATION_API_KEY do servidor.",
+        latencyMs: Math.round(performance.now() - start)
+      });
+    }
+  }
+
+  const latencyMs = Math.max(1, Math.round(performance.now() - start));
+  res.json({
+    ok: true,
+    serverName: "prospector-crm",
+    version: "1.0.0",
+    transport: "Streamable HTTP (JSON-RPC 2.0)",
+    endpoint: "/api/mcp",
+    latencyMs,
+    toolsAvailable: ["list_leads", "create_leads"],
+    message: "Conexão MCP operacional e autenticada com sucesso."
+  });
+});
+
 app.get("/api/leads", async (req, res) => {
   const store = await readStore();
   const query = String(req.query.q || "").toLowerCase();

@@ -65,6 +65,7 @@ import { LeadAuditModal } from "./LeadAuditModal";
 import { ColdAudioScriptModal } from "./ColdAudioScriptModal";
 import { BeforeAfterCardModal } from "./BeforeAfterCardModal";
 import { PublicProposalView } from "./PublicProposalView";
+import { McpHubModal } from "./McpHubModal";
 import { triggerConfetti } from "./Confetti";
 import type { DashboardData, Lead, Stage } from "./types";
 
@@ -1087,6 +1088,7 @@ export function App() {
   const [prospectingOpen, setProspectingOpen] = useState(false);
   const [webhookDocOpen, setWebhookDocOpen] = useState(false);
   const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
+  const [mcpHubOpen, setMcpHubOpen] = useState(false);
 
   // Commercial Suite Modals (ROI, Raio-X Audit, Audio WhatsApp, Before/After, Public Proposal)
   const [roiModalLead, setRoiModalLead] = useState<Lead | null>(null);
@@ -1360,7 +1362,16 @@ export function App() {
           </div>
 
           <div className="sidebar-section">
-            {!sidebarCollapsed && <span className="sidebar-section-title">Automação</span>}
+            {!sidebarCollapsed && <span className="sidebar-section-title">Automação & IA</span>}
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={() => setMcpHubOpen(true)}
+              title="Central de Conexões MCP & Agentes"
+            >
+              <Plug size={18} />
+              {!sidebarCollapsed && <span>Central MCP</span>}
+            </button>
             <button
               type="button"
               className="sidebar-nav-btn"
@@ -1536,6 +1547,17 @@ export function App() {
             >
               <Plug size={16} />
               <span>Webhook</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn-mcp-hub-trigger"
+              onClick={() => setMcpHubOpen(true)}
+              title="Central de Conexões MCP, ferramentas oficiais e integração com Agentes externos"
+            >
+              <span className="mcp-trigger-dot" />
+              <Plug size={15} />
+              <span>MCP & Agentes</span>
             </button>
 
             <button className="secondary batch-button" onClick={() => setBatchOpen(true)}>
@@ -2115,6 +2137,17 @@ export function App() {
         />
       )}
 
+      {mcpHubOpen && (
+        <McpHubModal
+          isOpen={mcpHubOpen}
+          onClose={() => setMcpHubOpen(false)}
+          onLeadSelect={(leadId) => {
+            const found = leads.find((l) => l.id === leadId);
+            if (found) setSelected(found);
+          }}
+        />
+      )}
+
       {addOpen && (
         <AddLead
           onClose={() => setAddOpen(false)}
@@ -2151,6 +2184,7 @@ export function App() {
         onOpenPlaybook={() => setApproachPlaybookOpen(true)}
         onOpenDaily={() => setProspectingOpen(true)}
         onOpenAnalytics={() => setAnalyticsModalOpen(true)}
+        onOpenMcp={() => setMcpHubOpen(true)}
         onToggleViewMode={() => handleViewModeChange(viewMode === "table" ? "kanban" : "table")}
         viewMode={viewMode}
       />

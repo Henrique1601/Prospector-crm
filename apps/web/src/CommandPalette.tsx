@@ -11,6 +11,7 @@ import {
   MapPin,
   MessageCircle,
   Plus,
+  Plug,
   Search,
   Sparkles,
   Target,
@@ -47,6 +48,7 @@ interface CommandPaletteProps {
   onOpenObjections?: () => void;
   onOpenDaily: () => void;
   onOpenAnalytics: () => void;
+  onOpenMcp?: () => void;
   onToggleViewMode: () => void;
   viewMode: "table" | "kanban";
 }
@@ -62,6 +64,7 @@ export function CommandPalette({
   onOpenObjections,
   onOpenDaily,
   onOpenAnalytics,
+  onOpenMcp,
   onToggleViewMode,
   viewMode
 }: CommandPaletteProps) {
@@ -134,6 +137,21 @@ export function CommandPalette({
         onOpenAnalytics();
       }
     },
+    ...(onOpenMcp
+      ? [
+          {
+            id: "mcp-hub",
+            title: "Central de Conexões MCP & Agentes Externos",
+            category: "action" as const,
+            icon: Plug,
+            hint: "Status do servidor, tokens e tools oficiais",
+            run: () => {
+              onClose();
+              onOpenMcp();
+            }
+          }
+        ]
+      : []),
     {
       id: "toggle-view",
       title: viewMode === "table" ? "Mudar para Visualização Pipeline Kanban" : "Mudar para Visualização Tabela",

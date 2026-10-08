@@ -42,5 +42,7 @@ export const api = {
   auditLead: (id: string) => request<import("./types").LeadAuditResult>(`/api/leads/${id}/audit`, { method: "POST" }),
   getAudioScript: (id: string) => request<import("./types").AudioScriptResult>(`/api/leads/${id}/audio-script`, { method: "POST" }),
   getPublicProposal: (id: string) => request<import("./types").PublicProposalData>(`/api/proposals/${id}/public`),
+  mcpStatus: () => request<import("./types").McpStatusResponse>("/api/mcp/status"),
+  testMcpConnection: (token?: string) => request<import("./types").McpTestResponse>("/api/mcp/test-connection", { method: "POST", body: JSON.stringify({ token }) }),
   exportCsvUrl: () => `${apiBaseUrl}/api/leads/export/csv`
 };
