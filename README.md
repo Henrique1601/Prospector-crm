@@ -38,7 +38,7 @@ O agente prepara pesquisa, score, abordagem e demonstração. O contato com a em
 
 O monorepo usa dois projetos:
 
-- `web`: Root Directory `apps/web`, Framework Preset `Vite` e variável `VITE_API_URL` apontando para a URL pública da API.
+- `crm-pessoal` (CRM Pessoal): Root Directory `apps/web`, Framework Preset `Vite` e variável `VITE_API_URL` apontando para a URL pública da API.
 - `api-prospector`: Root Directory `apps/api`. O arquivo `index.ts` exporta o Express como Vercel Function e o `vercel.json` encaminha todas as rotas para essa função.
 
 Em produção, a API usa Lakebase Postgres no Neon quando `DATABASE_URL` está configurada. A migração versionada está em `apps/api/migrations`. Sem essa variável, o desenvolvimento local continua usando `apps/api/data/store.json`; na Vercel, o fallback é temporário e aparece claramente na interface.
