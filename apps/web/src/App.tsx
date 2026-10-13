@@ -53,1008 +53,26 @@ import {
 import { api } from "./api";
 import { BatchImportModal } from "./BatchImportModal";
 import { ProposalModal } from "./ProposalModal";
-import { ObjectionsAssistant } from "./ObjectionsAssistant";
 import { ApproachPlaybookModal } from "./ApproachPlaybookModal";
 import { DailyProspectingModal } from "./DailyProspectingModal";
 import { WebhookDocModal } from "./WebhookDocModal";
 import { AnalyticsModal } from "./AnalyticsModal";
 import { CommandPalette } from "./CommandPalette";
-import { KanbanBoard } from "./KanbanBoard";
 import { RoiCalculatorModal } from "./RoiCalculatorModal";
 import { LeadAuditModal } from "./LeadAuditModal";
 import { ColdAudioScriptModal } from "./ColdAudioScriptModal";
 import { BeforeAfterCardModal } from "./BeforeAfterCardModal";
 import { PublicProposalView } from "./PublicProposalView";
 import { McpHubModal } from "./McpHubModal";
-import { triggerConfetti } from "./Confetti";
-import type { DashboardData, DemoPrimaryGoal, DemoProjectType, Lead, Stage } from "./types";
+import { LeadDrawer } from "./LeadDrawer";
+import { PipelineView } from "./views/PipelineView";
+import { DailyRoutineView } from "./views/DailyRoutineView";
+import { AnalyticsView } from "./views/AnalyticsView";
+import { PlaybookView } from "./views/PlaybookView";
+import { IntegrationsView } from "./views/IntegrationsView";
+import type { DashboardData, Lead, Stage } from "./types";
 
-const stageLabels: Record<Stage, string> = {
-  new: "Novo",
-  analyzed: "Analisado",
-  contacted: "Contatado",
-  replied: "Respondeu",
-  meeting: "Reunião",
-  proposal: "Proposta",
-  won: "Fechado",
-  lost: "Perdido"
-};
-const mainStages: Stage[] = ["new", "analyzed", "contacted", "replied", "meeting", "proposal", "won"];
-
-function Score({ value }: { value: number }) {
-  return (
-    <div className="score" style={{ "--score": `${value * 3.6}deg` } as React.CSSProperties}>
-      <span>{value || "–"}</span>
-    </div>
-  );
-}
-
-function StagePill({ stage }: { stage: Stage }) {
-  return <span className={`stage stage-${stage}`}>{stageLabels[stage]}</span>;
-}
-
-function Metric({
-  label,
-  value,
-  note,
-  icon: Icon
-}: {
-  label: string;
-  value: string | number;
-  note: string;
-  icon: typeof Users;
-}) {
-  return (
-    <article className="metric">
-      <div className="metric-icon">
-        <Icon size={18} />
-      </div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{note}</small>
-      </div>
-    </article>
-  );
-}
-
-type ApproachType = "portfolio" | "curiosity" | "invisible_loss" | "ready_question" | "short" | "direct";
-
-function LeadDrawer({
-  lead,
-  onClose,
-  onChanged,
-  onOpenProposal,
-  onOpenPlaybook,
-  onOpenRoi,
-  onOpenAudit,
-  onOpenAudio,
-  onOpenBeforeAfter,
-  onOpenPublicProposal
-}: {
-  lead: Lead;
-  onClose: () => void;
-  onChanged: (lead: Lead) => void;
-  onOpenProposal: (lead: Lead) => void;
-  onOpenPlaybook: (lead: Lead) => void;
-  onOpenRoi: (lead: Lead) => void;
-  onOpenAudit: (lead: Lead) => void;
-  onOpenAudio: (lead: Lead) => void;
-  onOpenBeforeAfter: (lead: Lead) => void;
-  onOpenPublicProposal: (lead: Lead) => void;
-}) {
-  const [busy, setBusy] = useState("");
-  const [note, setNote] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [selectedApproach, setSelectedApproach] = useState<ApproachType>("curiosity");
-  const [demoUrlInput, setDemoUrlInput] = useState(lead.demoUrl || "");
-  const [demoForm, setDemoForm] = useState<{
-    projectType: DemoProjectType;
-    primaryGoal: DemoPrimaryGoal;
-    informationConfirmed: boolean;
-  }>({
-    projectType: lead.demoProjectType || "landing_page",
-    primaryGoal: lead.demoPrimaryGoal || "quotes",
-    informationConfirmed: Boolean(lead.demoInformationConfirmed)
-  });
-  const latestDemo = lead.demos?.[0];
-
-  const handleToggleVoice = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Seu navegador não suporta reconhecimento de voz direto. Recomendamos Google Chrome ou Edge.");
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setNote((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
-  const googleCalendarUrl = useMemo(() => {
-    if (!lead.nextFollowUp) return null;
-    const d = new Date(lead.nextFollowUp);
-    const startStr = d.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const endDate = new Date(d.getTime() + 30 * 60 * 1000);
-    const endStr = endDate.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const title = encodeURIComponent(`Follow-up Prospector CRM: ${lead.name}`);
-    const details = encodeURIComponent(`Contato de prospecção comercial da ${lead.name} (${lead.segment} em ${lead.city}).
-Telefone: ${lead.phone || "Não informado"}
-WhatsApp: ${lead.whatsappUrl || "Não informado"}
-Próxima ação: ${lead.nextAction || "Retornar contato"}`);
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}`;
-  }, [lead.nextFollowUp, lead.name, lead.segment, lead.city, lead.phone, lead.whatsappUrl, lead.nextAction]);
-
-  const [editForm, setEditForm] = useState({
-    name: lead.name,
-    segment: lead.segment,
-    city: lead.city,
-    state: lead.state,
-    website: lead.website || "",
-    phone: lead.phone || "",
-    address: lead.address || ""
-  });
-
-  useEffect(() => {
-    setEditForm({
-      name: lead.name,
-      segment: lead.segment,
-      city: lead.city,
-      state: lead.state,
-      website: lead.website || "",
-      phone: lead.phone || "",
-      address: lead.address || ""
-    });
-    setDemoUrlInput(lead.demos?.[0]?.previewUrl || lead.demoUrl || "");
-    setDemoForm({
-      projectType: lead.demoProjectType || "landing_page",
-      primaryGoal: lead.demoPrimaryGoal || "quotes",
-      informationConfirmed: Boolean(lead.demoInformationConfirmed)
-    });
-    setIsEditing(false);
-  }, [lead.id, lead.updatedAt, lead.demoUrl, lead.demoProjectType, lead.demoPrimaryGoal, lead.demoInformationConfirmed, lead.demos]);
-
-  const act = async (name: string, fn: () => Promise<Lead>) => {
-    setBusy(name);
-    try {
-      onChanged(await fn());
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const currentMessage = useMemo(() => {
-    if (lead.suggestedMessages) {
-      if (selectedApproach === "curiosity" && lead.suggestedMessages.curiosity) return lead.suggestedMessages.curiosity;
-      if (selectedApproach === "invisible_loss" && lead.suggestedMessages.invisible_loss) return lead.suggestedMessages.invisible_loss;
-      if (selectedApproach === "ready_question" && lead.suggestedMessages.ready_question) return lead.suggestedMessages.ready_question;
-      if (selectedApproach === "portfolio" && lead.suggestedMessages.portfolio) return lead.suggestedMessages.portfolio;
-      if (selectedApproach === "short" && lead.suggestedMessages.short) return lead.suggestedMessages.short;
-      if (selectedApproach === "direct" && lead.suggestedMessages.direct) return lead.suggestedMessages.direct;
-    }
-    return lead.suggestedMessage || "";
-  }, [lead.suggestedMessages, lead.suggestedMessage, selectedApproach]);
-
-  const copyMessage = async () => {
-    if (currentMessage) {
-      await navigator.clipboard.writeText(currentMessage);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const cleanPhone = (lead.phone || "").replace(/\D/g, "");
-  const waDirectUrl = cleanPhone
-    ? `https://wa.me/55${cleanPhone}${currentMessage ? `?text=${encodeURIComponent(currentMessage)}` : ""}`
-    : lead.whatsappUrl
-    ? `${lead.whatsappUrl}${currentMessage ? `?text=${encodeURIComponent(currentMessage)}` : ""}`
-    : undefined;
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await act("edit", () => api.update(lead.id, editForm));
-    setIsEditing(false);
-  };
-
-  const handleSaveDemoUrl = async () => {
-    await act("save-demo-url", () =>
-      latestDemo
-        ? api.updateDemo(lead.id, latestDemo.id, { previewUrl: demoUrlInput })
-        : api.update(lead.id, { demoUrl: demoUrlInput })
-    );
-  };
-
-  const approachNames: Record<ApproachType, string> = {
-    curiosity: "Pergunta Concorrência ⭐",
-    invisible_loss: "Perda Invisível 🔥",
-    ready_question: "Prontidão 🚀",
-    portfolio: "Portfólio Completo",
-    short: "Curta WhatsApp",
-    direct: "Demonstração"
-  };
-
-  return (
-    <div className="drawer-wrap">
-      <button className="drawer-scrim" onClick={onClose} aria-label="Fechar ficha do lead" />
-      <aside className="drawer">
-        <div className="drawer-header">
-          <div className="drawer-header-top-row">
-            <span className="eyebrow">
-              {lead.segment} · {lead.city}/{lead.state}
-            </span>
-            <div className="drawer-header-actions">
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenRoi(lead)}
-                title="Calculadora de Perda Invisível & ROI"
-              >
-                <Calculator size={13} />
-                <span>ROI</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenAudit(lead)}
-                title="Raio-X Técnico de Performance e SEO Local"
-              >
-                <Activity size={13} />
-                <span>Raio-X</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenBeforeAfter(lead)}
-                title="Card Antes vs Depois da Presença Digital"
-              >
-                <Layers size={13} />
-                <span>Antes/Depois</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenAudio(lead)}
-                title="Roteiro de Áudio para WhatsApp (30s)"
-              >
-                <Mic size={13} />
-                <span>Áudio</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenPublicProposal(lead)}
-                title="Abrir Proposta Online do Cliente"
-              >
-                <Share2 size={13} />
-                <span>Link Web</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenProposal(lead)}
-                title="Gerar proposta comercial personalizada em PDF"
-              >
-                <FileText size={13} />
-                <span>PDF</span>
-              </button>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => onOpenPlaybook(lead)}
-                title="Ver todas as opções de abordagem"
-              >
-                <BookOpen size={13} />
-                <span>Playbook</span>
-              </button>
-              <button className="icon-button" onClick={onClose} aria-label="Fechar ficha">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="drawer-header-title-row">
-            <h2>{lead.name}</h2>
-            <div className="drawer-header-badges">
-              <span className="drawer-badge score">Score {lead.score}</span>
-              <span className={`drawer-badge priority priority-${lead.priority}`}>
-                {lead.priority === "urgent" ? "Urgente" : lead.priority === "high" ? "Alta" : "Média"}
-              </span>
-              {lead.hasWhatsapp && (
-                <span className="drawer-badge wa">
-                  <MessageCircle size={11} /> WhatsApp
-                </span>
-              )}
-              {lead.website ? (
-                <a href={lead.website} target="_blank" rel="noreferrer" className="drawer-badge site">
-                  <Globe size={11} /> Site ativo
-                </a>
-              ) : (
-                <span className="drawer-badge nosite">Sem site</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-      <div className="drawer-body">
-        {/* Card de Dados da Empresa */}
-        <section className="drawer-card">
-          <div className="section-title">
-            <h3>Dados do estabelecimento</h3>
-            <button
-              type="button"
-              className="copy-action-btn"
-              onClick={() => setIsEditing(!isEditing)}
-            >
-              <Edit3 size={13} />
-              <span>{isEditing ? "Cancelar" : "Editar"}</span>
-            </button>
-          </div>
-
-          {isEditing ? (
-            <form onSubmit={handleSaveEdit} className="drawer-edit-form">
-              <label className="field">
-                <span>Nome</span>
-                <input
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                />
-              </label>
-              <div className="form-grid">
-                <label className="field">
-                  <span>Segmento</span>
-                  <input
-                    required
-                    value={editForm.segment}
-                    onChange={(e) => setEditForm({ ...editForm, segment: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Cidade</span>
-                  <input
-                    required
-                    value={editForm.city}
-                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                  />
-                </label>
-              </div>
-              <div className="form-grid">
-                <label className="field">
-                  <span>Telefone / WhatsApp</span>
-                  <input
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Website</span>
-                  <input
-                    value={editForm.website}
-                    onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                  />
-                </label>
-              </div>
-              <label className="field">
-                <span>Endereço</span>
-                <input
-                  value={editForm.address}
-                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                />
-              </label>
-              <button className="primary full" disabled={busy === "edit"}>
-                <Save size={14} />
-                {busy === "edit" ? "Salvando..." : "Salvar alterações"}
-              </button>
-            </form>
-          ) : (
-            <div className="drawer-meta-grid">
-              <div>
-                <span>Status do site:</span>
-                <strong>
-                  {lead.siteStatus === "good"
-                    ? "Site ativo"
-                    : lead.siteStatus === "weak"
-                    ? "Site precisa de melhorias"
-                    : lead.siteStatus === "none"
-                    ? "Sem site institucional"
-                    : "A avaliar"}
-                </strong>
-              </div>
-              <div>
-                <span>Presença digital:</span>
-                <strong>{lead.digitalPresence}</strong>
-              </div>
-              {lead.phone && (
-                <div>
-                  <span>Telefone:</span>
-                  <strong>{lead.phone}</strong>
-                </div>
-              )}
-              {lead.website && (
-                <div>
-                  <span>Website:</span>
-                  <a href={lead.website} target="_blank" rel="noreferrer" className="site-link">
-                    {lead.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-                    <ExternalLink size={12} />
-                  </a>
-                </div>
-              )}
-              {lead.address && (
-                <div className="full-width">
-                  <span>Endereço:</span>
-                  <p>{lead.address}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Diagnóstico e Análise do Agente */}
-        <section className="drawer-card">
-          <div className="section-title">
-            <h3>Diagnóstico do agente</h3>
-            <Score value={lead.score} />
-          </div>
-          {lead.opportunity && (
-            <div className="callout">
-              <Sparkles size={16} />
-              <div>
-                <strong>Oportunidade identificada</strong>
-                <p>{lead.opportunity}</p>
-              </div>
-            </div>
-          )}
-          {lead.reason && (
-            <div className="callout subtle">
-              <Target size={16} />
-              <div>
-                <strong>Justificativa</strong>
-                <p>{lead.reason}</p>
-              </div>
-            </div>
-          )}
-          <button
-            className="secondary full"
-            disabled={busy === "analyze"}
-            onClick={() => act("analyze", () => api.analyze(lead.id))}
-          >
-            <Sparkles size={16} />
-            {busy === "analyze" ? "Analisando…" : lead.analyzedAt ? "Analisar novamente" : "Pesquisar e analisar"}
-          </button>
-        </section>
-
-        {/* Abordagens Sugeridas */}
-        <section className="drawer-card">
-          <div className="section-title">
-            <h3>Abordagem sugerida</h3>
-            <div className="section-actions-row">
-              <button type="button" className="secondary-subtle-btn" onClick={() => onOpenPlaybook(lead)}>
-                <BookOpen size={13} />
-                <span>Ver Playbook</span>
-              </button>
-              {currentMessage && (
-                <button className="copy-action-btn" onClick={copyMessage}>
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copied ? "Copiado!" : "Copiar"}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="approach-tabs" role="tablist" aria-label="Variações de abordagem">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "curiosity"}
-              className={`approach-tab ${selectedApproach === "curiosity" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("curiosity")}
-            >
-              1. Concorrência ⭐
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "invisible_loss"}
-              className={`approach-tab ${selectedApproach === "invisible_loss" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("invisible_loss")}
-            >
-              2. Perda Invisível 🔥
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "ready_question"}
-              className={`approach-tab ${selectedApproach === "ready_question" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("ready_question")}
-            >
-              3. Prontidão 🚀
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "portfolio"}
-              className={`approach-tab ${selectedApproach === "portfolio" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("portfolio")}
-            >
-              Portfólio
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "short"}
-              className={`approach-tab ${selectedApproach === "short" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("short")}
-            >
-              Curta WhatsApp
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedApproach === "direct"}
-              className={`approach-tab ${selectedApproach === "direct" ? "active" : ""}`}
-              onClick={() => setSelectedApproach("direct")}
-            >
-              Demonstração
-            </button>
-          </div>
-
-          <div className="message-box">
-            {currentMessage || "A abordagem personalizada aparecerá aqui depois da análise."}
-          </div>
-
-          {currentMessage && waDirectUrl && (
-            <a
-              href={waDirectUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="whatsapp-send-ready-btn"
-              onClick={() => {
-                api.interaction(lead.id, `Iniciou contato no WhatsApp com abordagem: ${approachNames[selectedApproach]}`).then(onChanged).catch(() => {});
-              }}
-            >
-              <MessageCircle size={15} />
-              <span>Conversar no WhatsApp com texto pronto</span>
-              <ExternalLink size={12} />
-            </a>
-          )}
-
-          <label className="field">
-            <span>Estágio do relacionamento</span>
-            <select
-              value={lead.stage}
-              onChange={(e) => {
-                const nextStage = e.target.value as Stage;
-                if (nextStage === "won") {
-                  triggerConfetti();
-                }
-                act("stage", () => api.stage(lead.id, nextStage));
-              }}
-            >
-              {mainStages.concat("lost").map((stage) => (
-                <option key={stage} value={stage}>
-                  {stageLabels[stage]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <ObjectionsAssistant
-            lead={lead}
-            onLoggedInteraction={(noteText) => {
-              api.interaction(lead.id, noteText).then(onChanged).catch(() => {});
-            }}
-          />
-        </section>
-
-        {/* Fluxo de Demonstração com IA */}
-        <section className="drawer-card drawer-demo-card demo-workflow-card">
-          <div className="section-title">
-            <div>
-              <span className="eyebrow">Human-in-the-loop</span>
-              <h3>Demonstração com IA</h3>
-            </div>
-            {latestDemo?.previewUrl && (
-              <a href={latestDemo.previewUrl} target="_blank" rel="noreferrer" className="demo-live-badge">
-                <ExternalLink size={12} /> Ver V{latestDemo.version}
-              </a>
-            )}
-          </div>
-
-          <div className="demo-workflow-status">
-            <label className="field">
-              <span>Interesse do cliente</span>
-              <select
-                value={lead.demoInterest || "not_offered"}
-                onChange={(e) =>
-                  act("demo-interest", () =>
-                    api.update(lead.id, { demoInterest: e.target.value as Lead["demoInterest"] })
-                  )
-                }
-              >
-                <option value="not_offered">Não oferecida</option>
-                <option value="offered">Oferecida</option>
-                <option value="accepted">Aceita</option>
-                <option value="declined">Recusada</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Status</span>
-              <input value={lead.demoStatus || "Aguardando aceite"} readOnly />
-            </label>
-          </div>
-
-          {lead.demoInterest === "not_offered" || !lead.demoInterest ? (
-            <button
-              className="secondary full"
-              disabled={busy === "offer-demo"}
-              onClick={() => act("offer-demo", () => api.offerDemo(lead.id))}
-            >
-              <MessageCircle size={16} />
-              {busy === "offer-demo" ? "Preparando…" : "Preparar oferta de demonstração"}
-            </button>
-          ) : null}
-
-          <div className="demo-workflow-status">
-            <label className="field">
-              <span>Tipo de projeto</span>
-              <select
-                value={demoForm.projectType}
-                onChange={(e) => setDemoForm({ ...demoForm, projectType: e.target.value as DemoProjectType })}
-              >
-                <option value="landing_page">Landing page</option>
-                <option value="institutional_site">Site institucional</option>
-                <option value="catalog">Catálogo digital</option>
-                <option value="ecommerce">E-commerce</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Objetivo principal</span>
-              <select
-                value={demoForm.primaryGoal}
-                onChange={(e) => setDemoForm({ ...demoForm, primaryGoal: e.target.value as DemoPrimaryGoal })}
-              >
-                <option value="quotes">Orçamentos</option>
-                <option value="orders">Pedidos</option>
-                <option value="reservations">Reservas</option>
-                <option value="appointments">Agendamentos</option>
-              </select>
-            </label>
-          </div>
-
-          <label className="demo-confirmation-check">
-            <input
-              type="checkbox"
-              checked={demoForm.informationConfirmed}
-              onChange={(e) => setDemoForm({ ...demoForm, informationConfirmed: e.target.checked })}
-            />
-            <span>
-              <strong>Informações confirmadas</strong>
-              Telefone, endereço, serviços e identidade visual foram revisados.
-            </span>
-          </label>
-
-          <button
-            className="primary full demo-action-btn"
-            disabled={
-              busy === "generate-demo" ||
-              lead.demoInterest !== "accepted" ||
-              !demoForm.informationConfirmed
-            }
-            onClick={() =>
-              act("generate-demo", () =>
-                api.generateDemo(lead.id, {
-                  projectType: demoForm.projectType,
-                  primaryGoal: demoForm.primaryGoal,
-                  informationConfirmed: true
-                })
-              )
-            }
-            title={
-              lead.demoInterest !== "accepted"
-                ? "Registre o aceite do cliente primeiro"
-                : !demoForm.informationConfirmed
-                ? "Confirme os dados antes de gerar"
-                : "Gerar briefing e prompt"
-            }
-          >
-            <Bot size={16} />
-            {busy === "generate-demo"
-              ? "Gerando briefing e prompt…"
-              : latestDemo
-              ? "Gerar nova versão"
-              : "Gerar briefing e prompt com IA"}
-          </button>
-
-          {latestDemo ? (
-            <div className="demo-version-panel">
-              <div className="demo-version-header">
-                <div>
-                  <span className="demo-brief-eyebrow">Versão V{latestDemo.version}</span>
-                  <strong>{latestDemo.status}</strong>
-                </div>
-                <select
-                  value={latestDemo.status}
-                  onChange={(e) =>
-                    act("demo-status", () =>
-                      api.updateDemo(lead.id, latestDemo.id, {
-                        status: e.target.value as import("./types").DemoStatus
-                      })
-                    )
-                  }
-                >
-                  <option value="review">Em revisão</option>
-                  <option value="ready">Pronta</option>
-                  <option value="sent">Enviada</option>
-                  <option value="approved">Aprovada</option>
-                  <option value="generating">Gerando</option>
-                  <option value="briefing">Briefing</option>
-                </select>
-              </div>
-
-              <div className="demo-copy-block">
-                <div className="section-title">
-                  <h4>Resumo estratégico</h4>
-                  <button
-                    className="copy-action-btn"
-                    onClick={() => navigator.clipboard.writeText(latestDemo.strategicSummary)}
-                  >
-                    <Copy size={13} /> Copiar
-                  </button>
-                </div>
-                <p>{latestDemo.strategicSummary}</p>
-              </div>
-
-              <div className="demo-copy-block">
-                <div className="section-title">
-                  <h4>Prompt para a IA construtora</h4>
-                  <button
-                    className="copy-action-btn"
-                    onClick={() => navigator.clipboard.writeText(latestDemo.prompt)}
-                  >
-                    <Copy size={13} /> Copiar prompt
-                  </button>
-                </div>
-                <pre className="brief">{latestDemo.prompt}</pre>
-              </div>
-
-              {lead.demos && lead.demos.length > 1 && (
-                <div className="demo-version-history">
-                  {lead.demos.slice(1).map((demo) => (
-                    <span key={demo.id}>V{demo.version} · {demo.status}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="drawer-empty-text">
-              O briefing e o prompt aparecerão aqui depois do aceite e da confirmação dos dados.
-            </p>
-          )}
-
-          <div className="drawer-demo-url-box">
-            <span className="demo-url-label">Link da demonstração</span>
-            <div className="input-action-row">
-              <input
-                type="url"
-                placeholder="https://preview--cliente.lovable.app"
-                value={demoUrlInput}
-                onChange={(e) => setDemoUrlInput(e.target.value)}
-              />
-              <button
-                type="button"
-                className="secondary"
-                disabled={busy === "save-demo-url" || !demoUrlInput.trim()}
-                onClick={handleSaveDemoUrl}
-              >
-                {busy === "save-demo-url" ? "Salvando…" : "Salvar link"}
-              </button>
-            </div>
-          </div>
-
-          {latestDemo && (
-            <label className="field">
-              <span>Feedback ou próximo ajuste</span>
-              <textarea
-                defaultValue={latestDemo.feedback || ""}
-                placeholder="Registre o retorno do cliente para gerar a próxima versão."
-                onBlur={(e) => {
-                  const feedback = e.target.value.trim();
-                  if (feedback !== (latestDemo.feedback || "")) {
-                    act("demo-feedback", () =>
-                      api.updateDemo(lead.id, latestDemo.id, {
-                        feedback,
-                        nextStep: feedback ? "Revisar feedback e preparar nova versão" : latestDemo.nextStep
-                      })
-                    );
-                  }
-                }}
-              />
-            </label>
-          )}
-        </section>
-
-        {/* Agendamento de Follow-up */}
-        <section className="drawer-card">
-          <div className="section-title">
-            <h3>Próximo contato</h3>
-            {lead.nextFollowUp && (
-              <span className="badge">
-                {new Date(lead.nextFollowUp).toLocaleDateString("pt-BR")}
-              </span>
-            )}
-          </div>
-          <label className="field">
-            <span>Próxima ação</span>
-            <input
-              value={lead.nextAction || ""}
-              onChange={(e) => act("action", () => api.update(lead.id, { nextAction: e.target.value }))}
-              placeholder="Ex.: Enviar rascunho de proposta"
-            />
-          </label>
-          <label className="field">
-            <span>Data do próximo contato</span>
-            <input
-              type="date"
-              value={lead.nextFollowUp ? lead.nextFollowUp.slice(0, 10) : ""}
-              onChange={(e) =>
-                act("followup", () =>
-                  api.update(lead.id, {
-                    nextFollowUp: e.target.value ? new Date(e.target.value).toISOString() : undefined
-                  })
-                )
-              }
-            />
-          </label>
-
-          {googleCalendarUrl && (
-            <a
-              href={googleCalendarUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-google-calendar"
-              title="Criar evento oficial no Google Agenda com lembrete"
-            >
-              <CalendarPlus size={14} />
-              <span>Adicionar ao Google Agenda</span>
-            </a>
-          )}
-        </section>
-
-        {/* Histórico de Interações */}
-        <section className="drawer-card drawer-history-card">
-          <div className="section-title">
-            <h3>Histórico de contatos</h3>
-            <span className="drawer-record-badge">{lead.interactions.length} registros</span>
-          </div>
-
-          {/* Quick Action Chips */}
-          <div className="quick-interaction-section">
-            <span className="quick-interaction-label">Anotações Rápidas em 1 Clique:</span>
-            <div className="quick-interaction-chips">
-              {[
-                { label: "📞 Ligou s/ atender", text: "Ligou para a empresa, porém ninguém atendeu." },
-                { label: "🎙️ Mandou áudio WA", text: "Enviou mensagem de áudio personalizada pelo WhatsApp." },
-                { label: "📋 Pediu proposta", text: "Cliente demonstrou interesse e solicitou o envio da proposta comercial." },
-                { label: "💻 Demonstração apresentada", text: "Apresentou demonstração / protótipo do site." },
-                { label: "💰 Negociando valores", text: "Em negociação de condições de pagamento e fechamento." }
-              ].map((chip) => (
-                <button
-                  key={chip.label}
-                  type="button"
-                  className="quick-chip-btn"
-                  disabled={Boolean(busy)}
-                  onClick={() => {
-                    act("quick-note", () => api.interaction(lead.id, chip.text));
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <form
-            className="drawer-history-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!note.trim()) return;
-              act("note", () => api.interaction(lead.id, note)).then(() => setNote(""));
-            }}
-          >
-            <div className="field history-field">
-              <div className="field-header-row">
-                <span>Registrar nova anotação</span>
-                <button
-                  type="button"
-                  className={`btn-speech-mic ${isListening ? "listening" : ""}`}
-                  onClick={handleToggleVoice}
-                  title={isListening ? "Ouvindo... Clique para parar" : "Ditar anotação por voz"}
-                >
-                  {isListening ? <MicOff size={13} /> : <Mic size={13} />}
-                  <span>{isListening ? "Ouvindo microfone..." : "Ditar por voz"}</span>
-                </button>
-              </div>
-              <textarea
-                rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Ex.: Falou com o gerente pelo WhatsApp, pediu demonstração na quinta."
-              />
-            </div>
-            <button className="primary full history-submit-btn" disabled={busy === "note" || !note.trim()}>
-              <MessageSquareText size={16} />
-              {busy === "note" ? "Salvando…" : "Salvar no histórico"}
-            </button>
-          </form>
-
-          <div className="timeline">
-            {lead.interactions.length === 0 ? (
-              <div className="timeline-empty-state">
-                <CalendarClock size={18} className="timeline-empty-icon" />
-                <span>Nenhuma interação registrada ainda. Use os botões de abordagem ou anote acima.</span>
-              </div>
-            ) : (
-              lead.interactions.map((interaction) => {
-                const lower = interaction.content.toLowerCase();
-                const isWa = lower.includes("whatsapp");
-                const isProposal = lower.includes("proposta");
-                const isMaps = lower.includes("maps");
-                const isFollowup = lower.includes("follow-up") || lower.includes("contato");
-                return (
-                  <div key={interaction.id} className="timeline-item">
-                    <div className={`timeline-icon-badge ${isWa ? "wa" : isProposal ? "proposal" : isMaps ? "maps" : isFollowup ? "followup" : ""}`}>
-                      {isWa ? (
-                        <MessageCircle size={12} />
-                      ) : isProposal ? (
-                        <FileText size={12} />
-                      ) : isMaps ? (
-                        <MapPin size={12} />
-                      ) : (
-                        <CalendarClock size={12} />
-                      )}
-                    </div>
-                    <div className="timeline-content">
-                      <small className="timeline-date">
-                        {new Date(interaction.createdAt).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                      </small>
-                      <p className="timeline-text">{interaction.content}</p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-      </div>
-    </aside>
-  </div>
-  );
-}
+export type AppView = "pipeline" | "routine" | "analytics" | "playbook" | "integrations";
 
 function AddLead({
   onClose,
@@ -1243,6 +261,9 @@ export function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [activeView, setActiveView] = useState<AppView>("pipeline");
+
+  // Commercial Suite Modals
   const [proposalModalLead, setProposalModalLead] = useState<Lead | null>(null);
   const [playbookModalLead, setPlaybookModalLead] = useState<Lead | null>(null);
   const [approachPlaybookOpen, setApproachPlaybookOpen] = useState(false);
@@ -1251,7 +272,6 @@ export function App() {
   const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
   const [mcpHubOpen, setMcpHubOpen] = useState(false);
 
-  // Commercial Suite Modals (ROI, Raio-X Audit, Audio WhatsApp, Before/After, Public Proposal)
   const [roiModalLead, setRoiModalLead] = useState<Lead | null>(null);
   const [auditModalLead, setAuditModalLead] = useState<Lead | null>(null);
   const [audioModalLead, setAudioModalLead] = useState<Lead | null>(null);
@@ -1263,21 +283,12 @@ export function App() {
     return null;
   });
 
-  // New navigation & productivity states
+  // Navigation & Productivity states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("prospector_sidebar_collapsed") === "true";
   });
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
-    return (localStorage.getItem("prospector_view_mode") as "table" | "kanban") || "table";
-  });
   const [followupDropdownOpen, setFollowupDropdownOpen] = useState(false);
-
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Stage | "all">("all");
-  type QuickFilter = "all" | "no-site" | "with-whatsapp" | "today-followup" | "high-priority";
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [cityFilter, setCityFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [aiMode, setAiMode] = useState("local");
@@ -1290,11 +301,6 @@ export function App() {
       localStorage.setItem("prospector_sidebar_collapsed", String(next));
       return next;
     });
-  };
-
-  const handleViewModeChange = (mode: "table" | "kanban") => {
-    setViewMode(mode);
-    localStorage.setItem("prospector_view_mode", mode);
   };
 
   const load = async () => {
@@ -1338,69 +344,6 @@ export function App() {
     return leads.filter((lead) => Boolean(lead.nextFollowUp && lead.nextFollowUp.slice(0, 10) <= todayIsoStr));
   }, [leads, todayIsoStr]);
 
-  const cities = useMemo(() => {
-    const set = new Set(leads.map((l) => l.city).filter(Boolean));
-    return Array.from(set).sort();
-  }, [leads]);
-
-  const quickCounts = useMemo(() => {
-    return {
-      all: leads.length,
-      noSite: leads.filter((l) => l.siteStatus === "none" || !l.website || l.website.includes("wa.me")).length,
-      withWhatsapp: leads.filter((l) => Boolean(l.hasWhatsapp)).length,
-      todayFollowup: todayFollowUps.length,
-      highPriority: leads.filter((l) => ["high", "urgent"].includes(l.priority)).length
-    };
-  }, [leads, todayFollowUps]);
-
-  const normalizeSearchText = (str: string) =>
-    str
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-
-  const visible = useMemo(
-    () =>
-      leads.filter((lead) => {
-        if (filter !== "all" && lead.stage !== filter) return false;
-        if (cityFilter !== "all" && lead.city !== cityFilter) return false;
-
-        if (quickFilter === "no-site") {
-          const hasNoSite = lead.siteStatus === "none" || !lead.website || lead.website.includes("wa.me");
-          if (!hasNoSite) return false;
-        } else if (quickFilter === "with-whatsapp") {
-          if (!lead.hasWhatsapp) return false;
-        } else if (quickFilter === "today-followup") {
-          if (!lead.nextFollowUp || lead.nextFollowUp.slice(0, 10) > todayIsoStr) return false;
-        } else if (quickFilter === "high-priority") {
-          if (!["high", "urgent"].includes(lead.priority)) return false;
-        }
-
-        if (query.trim()) {
-          const normQuery = normalizeSearchText(query);
-          const rawText = `${lead.name} ${lead.segment} ${lead.city} ${lead.address || ""} ${lead.phone || ""}`;
-          const normText = normalizeSearchText(rawText);
-          const cleanPhoneDigits = (lead.phone || "").replace(/\D/g, "");
-          const queryDigits = query.replace(/\D/g, "");
-          const phoneMatch = queryDigits.length >= 3 && cleanPhoneDigits.includes(queryDigits);
-
-          if (!normText.includes(normQuery) && !phoneMatch) return false;
-        }
-
-        return true;
-      }),
-    [leads, filter, cityFilter, quickFilter, query, todayIsoStr]
-  );
-
-  const followUps = useMemo(
-    () =>
-      leads
-        .filter((lead) => lead.nextFollowUp)
-        .sort((a, b) => new Date(a.nextFollowUp!).getTime() - new Date(b.nextFollowUp!).getTime()),
-    [leads]
-  );
-
   const changed = (lead: Lead) => {
     setLeads((items) => items.map((item) => (item.id === lead.id ? lead : item)));
     setSelected(lead);
@@ -1431,7 +374,7 @@ export function App() {
 
   // Daily target calculation
   const dailyTargetCount = 10;
-  const contactedTodayCount = Math.min(quickCounts.withWhatsapp, dailyTargetCount);
+  const contactedTodayCount = Math.min(leads.filter((l) => Boolean(l.hasWhatsapp)).length, dailyTargetCount);
   const dailyProgressPercent = Math.min(100, Math.round((contactedTodayCount / dailyTargetCount) * 100));
 
   if (publicProposalLeadId) {
@@ -1450,19 +393,25 @@ export function App() {
 
   return (
     <div className={`shell ${sidebarCollapsed ? "shell-sidebar-collapsed" : ""}`}>
+      {/* Sidebar Executiva com Páginas Dedicadas */}
       <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-top-row">
-          <a className="brand" href="#top" aria-label="Prospector">
+          <button
+            type="button"
+            className="brand-btn"
+            onClick={() => setActiveView("pipeline")}
+            aria-label="Prospector Home"
+          >
             <span>
               <CircleGauge />
             </span>
             {!sidebarCollapsed && (
-              <div>
+              <div className="brand-text">
                 <strong>prospector</strong>
                 <small>por Henrique</small>
               </div>
             )}
-          </a>
+          </button>
           <button
             type="button"
             className="sidebar-collapse-toggle-btn"
@@ -1477,45 +426,42 @@ export function App() {
         <nav aria-label="Menu lateral">
           <div className="sidebar-section">
             {!sidebarCollapsed && <span className="sidebar-section-title">Comercial</span>}
-            <a className="active" href="#top" title="Visão geral">
-              <LayoutDashboard size={18} />
-              {!sidebarCollapsed && <span>Visão geral</span>}
-            </a>
-            <a href="#pipeline" title="Leads">
+            <button
+              type="button"
+              className={`sidebar-nav-btn ${activeView === "pipeline" ? "active" : ""}`}
+              onClick={() => setActiveView("pipeline")}
+              title="Pipeline & Gestão de Leads"
+            >
               <Users size={18} />
-              {!sidebarCollapsed && <span>Leads</span>}
-            </a>
-            <a href="#followups" title="Follow-ups">
-              <CalendarClock size={18} />
-              {!sidebarCollapsed && <span>Follow-ups</span>}
-            </a>
+              {!sidebarCollapsed && <span>Pipeline & Leads</span>}
+            </button>
+            <button
+              type="button"
+              className={`sidebar-nav-btn ${activeView === "routine" ? "active" : ""}`}
+              onClick={() => setActiveView("routine")}
+              title="Rotina Diária & Radar de Nichos"
+            >
+              <Compass size={18} />
+              {!sidebarCollapsed && <span>Rotina Diária</span>}
+            </button>
           </div>
 
           <div className="sidebar-section">
             {!sidebarCollapsed && <span className="sidebar-section-title">Inteligência</span>}
             <button
               type="button"
-              className="sidebar-nav-btn"
-              onClick={() => setApproachPlaybookOpen(true)}
-              title="Playbook de Abordagens"
+              className={`sidebar-nav-btn ${activeView === "playbook" ? "active" : ""}`}
+              onClick={() => setActiveView("playbook")}
+              title="Playbook de Abordagens & Objeções"
             >
               <BookOpen size={18} />
-              {!sidebarCollapsed && <span>Playbook</span>}
+              {!sidebarCollapsed && <span>Playbook & Roteiros</span>}
             </button>
             <button
               type="button"
-              className="sidebar-nav-btn"
-              onClick={() => setProspectingOpen(true)}
-              title="Radar & Rotina Diária"
-            >
-              <Compass size={18} />
-              {!sidebarCollapsed && <span>Rotina Diária</span>}
-            </button>
-            <button
-              type="button"
-              className="sidebar-nav-btn"
-              onClick={() => setAnalyticsModalOpen(true)}
-              title="Analytics Detalhado"
+              className={`sidebar-nav-btn ${activeView === "analytics" ? "active" : ""}`}
+              onClick={() => setActiveView("analytics")}
+              title="Analytics de Conversão & Métricas"
             >
               <BarChart3 size={18} />
               {!sidebarCollapsed && <span>Analytics</span>}
@@ -1526,21 +472,12 @@ export function App() {
             {!sidebarCollapsed && <span className="sidebar-section-title">Automação & IA</span>}
             <button
               type="button"
-              className="sidebar-nav-btn"
-              onClick={() => setMcpHubOpen(true)}
-              title="Central de Conexões MCP & Agentes"
+              className={`sidebar-nav-btn ${activeView === "integrations" ? "active" : ""}`}
+              onClick={() => setActiveView("integrations")}
+              title="Central de Conexões MCP & Webhooks"
             >
               <Plug size={18} />
-              {!sidebarCollapsed && <span>Central MCP</span>}
-            </button>
-            <button
-              type="button"
-              className="sidebar-nav-btn"
-              onClick={() => setWebhookDocOpen(true)}
-              title="Webhook Leads"
-            >
-              <Plug size={18} />
-              {!sidebarCollapsed && <span>Webhook</span>}
+              {!sidebarCollapsed && <span>Integrações & MCP</span>}
             </button>
           </div>
         </nav>
@@ -1579,16 +516,29 @@ export function App() {
         )}
       </aside>
 
+      {/* Conteúdo Principal com Topbar Limpa */}
       <main id="top">
         <header className="topbar">
           <div>
             <span className="eyebrow">{today}</span>
-            <h1>Seu radar comercial</h1>
-            <p>Veja os sinais mais promissores e decida o próximo movimento.</p>
+            <h1>
+              {activeView === "pipeline" && "Seu radar comercial"}
+              {activeView === "routine" && "Rotina diária de prospecção"}
+              {activeView === "analytics" && "Inteligência de conversão"}
+              {activeView === "playbook" && "Playbook de abordagens comerciais"}
+              {activeView === "integrations" && "Central de conexões & agentes"}
+            </h1>
+            <p>
+              {activeView === "pipeline" && "Veja os sinais mais promissores e decida o próximo movimento."}
+              {activeView === "routine" && "Prospecção ativa nos 11 nichos da Baixada Santista com dados reais."}
+              {activeView === "analytics" && "Acompanhe suas taxas de resposta, reuniões e fechamento por nicho."}
+              {activeView === "playbook" && "Roteiros validados, perguntas de impacto e respostas a objeções no WhatsApp."}
+              {activeView === "integrations" && "Conecte LLMs externos ao MCP Server e receba leads por Webhook."}
+            </p>
           </div>
 
           <div className="topbar-actions">
-            {/* Command Palette Trigger */}
+            {/* Command Palette Trigger (Ctrl+K) */}
             <button
               type="button"
               className="topbar-command-trigger"
@@ -1600,10 +550,10 @@ export function App() {
               <kbd>Ctrl K</kbd>
             </button>
 
-            {/* Gamified Daily Target Pill */}
+            {/* Meta Diária Resumida (Navega para a Rotina Diária) */}
             <div
               className="topbar-gamified-goal"
-              onClick={() => setProspectingOpen(true)}
+              onClick={() => setActiveView("routine")}
               title="Meta diária de prospecção. Clique para abrir rotina completa."
             >
               <div className="goal-icon">
@@ -1618,7 +568,7 @@ export function App() {
               </div>
             </div>
 
-            {/* Notification Bell with Floating Dropdown */}
+            {/* Notificações de Follow-up de Hoje */}
             <div className="followup-bell-container">
               <button
                 type="button"
@@ -1680,54 +630,14 @@ export function App() {
               )}
             </div>
 
-            <button
-              type="button"
-              className="secondary playbook-quick-btn"
-              onClick={() => setApproachPlaybookOpen(true)}
-              title="Abrir Central de Abordagens com as 3 perguntas de impacto e roteiros de WhatsApp"
-            >
-              <BookOpen size={16} />
-              <span>Abordagens</span>
-            </button>
-
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setProspectingOpen(true)}
-              title="Abrir radar de nichos da Baixada Santista e rotina de busca no Google Maps"
-            >
-              <Compass size={16} />
-              <span>Rotina Diária</span>
-            </button>
-
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setWebhookDocOpen(true)}
-              title="Conectar formulários de sites externos ao CRM via Webhook"
-            >
-              <Plug size={16} />
-              <span>Webhook</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-mcp-hub-trigger"
-              onClick={() => setMcpHubOpen(true)}
-              title="Central de Conexões MCP, ferramentas oficiais e integração com Agentes externos"
-            >
-              <span className="mcp-trigger-dot" />
-              <Plug size={15} />
-              <span>MCP & Agentes</span>
-            </button>
-
+            {/* Apenas 2 Botões Essenciais de Ação na Topbar */}
             <button className="secondary batch-button" onClick={() => setBatchOpen(true)}>
               <Layers size={16} />
-              Importar em massa
+              <span>Importar em massa</span>
             </button>
             <button className="primary" onClick={() => setAddOpen(true)}>
               <Plus size={16} />
-              Adicionar empresa
+              <span>Adicionar empresa</span>
             </button>
           </div>
         </header>
@@ -1738,412 +648,54 @@ export function App() {
           </div>
         )}
 
-        <section className="metrics" aria-label="Resumo do funil">
-          <Metric
-            label="Leads mapeados"
-            value={dashboard?.total ?? "–"}
-            note="base ativa"
-            icon={Users}
+        {/* Renderização Condicional da Página Selecionada */}
+        {activeView === "pipeline" && (
+          <PipelineView
+            leads={leads}
+            dashboard={dashboard}
+            onSelectLead={setSelected}
+            onUpdateStage={handleUpdateStage}
+            onAnalyzeNext={analyzeNext}
+            onOpenAddModal={() => setAddOpen(true)}
+            onOpenBatchModal={() => setBatchOpen(true)}
           />
-          <Metric
-            label="Alta prioridade"
-            value={dashboard?.highPriority ?? "–"}
-            note="merecem atenção"
-            icon={Target}
+        )}
+
+        {activeView === "routine" && (
+          <DailyRoutineView
+            leads={leads}
+            onSelectLead={setSelected}
+            onImportBatch={() => setBatchOpen(true)}
           />
-          <Metric
-            label="Taxa de resposta"
-            value={`${dashboard?.responseRate ?? 0}%`}
-            note={`${dashboard?.replies ?? 0} respostas registradas`}
-            icon={MessageSquareText}
+        )}
+
+        {activeView === "analytics" && (
+          <AnalyticsView
+            leads={leads}
+            dashboard={dashboard}
           />
-          <Metric
-            label="Negócios fechados"
-            value={dashboard?.won ?? "–"}
-            note="neste ciclo"
-            icon={BriefcaseBusiness}
+        )}
+
+        {activeView === "playbook" && (
+          <PlaybookView
+            selectedLead={selected}
+            onSelectLead={setSelected}
           />
-        </section>
+        )}
 
-        <section className="pipeline" id="pipeline">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Base comercial</span>
-              <h2>Leads e oportunidades</h2>
-            </div>
-            <div className="tools">
-              <label className="search-field-label">
-                <Search size={15} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar empresa, nicho, cidade, telefone…"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    className="clear-search-btn"
-                    onClick={() => setQuery("")}
-                    title="Limpar busca"
-                    aria-label="Limpar busca"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </label>
-              <button
-                className="filter-button"
-                onClick={() => setFilter(filter === "all" ? "new" : "all")}
-              >
-                <ListFilter size={15} />
-                {filter === "all" ? "Todos" : stageLabels[filter]}
-              </button>
-            </div>
-          </div>
-
-          <div className="smart-chips-bar">
-            <div className="smart-chips-list">
-              <button
-                type="button"
-                className={`smart-chip ${quickFilter === "all" ? "active" : ""}`}
-                onClick={() => setQuickFilter("all")}
-              >
-                <span>Todos</span>
-                <span className="chip-count">{quickCounts.all}</span>
-              </button>
-              <button
-                type="button"
-                className={`smart-chip ${quickFilter === "no-site" ? "active" : ""}`}
-                onClick={() => setQuickFilter("no-site")}
-              >
-                <span>Sem Site</span>
-                <span className="chip-count highlight">{quickCounts.noSite}</span>
-              </button>
-              <button
-                type="button"
-                className={`smart-chip ${quickFilter === "with-whatsapp" ? "active" : ""}`}
-                onClick={() => setQuickFilter("with-whatsapp")}
-              >
-                <span>Com WhatsApp</span>
-                <span className="chip-count">{quickCounts.withWhatsapp}</span>
-              </button>
-              <button
-                type="button"
-                className={`smart-chip ${quickFilter === "today-followup" ? "active" : ""}`}
-                onClick={() => setQuickFilter("today-followup")}
-              >
-                <span>Follow-up Hoje</span>
-                <span className={`chip-count ${quickCounts.todayFollowup > 0 ? "warning" : ""}`}>{quickCounts.todayFollowup}</span>
-              </button>
-              <button
-                type="button"
-                className={`smart-chip ${quickFilter === "high-priority" ? "active" : ""}`}
-                onClick={() => setQuickFilter("high-priority")}
-              >
-                <span>Alta Prioridade</span>
-                <span className="chip-count">{quickCounts.highPriority}</span>
-              </button>
-            </div>
-
-            <div className="smart-chips-secondary">
-              <div className="view-mode-pill-toggle">
-                <button
-                  type="button"
-                  className={`view-mode-btn ${viewMode === "table" ? "active" : ""}`}
-                  onClick={() => handleViewModeChange("table")}
-                  title="Visualização Tabela"
-                >
-                  <TableIcon size={13} />
-                  <span>Tabela</span>
-                </button>
-                <button
-                  type="button"
-                  className={`view-mode-btn ${viewMode === "kanban" ? "active" : ""}`}
-                  onClick={() => handleViewModeChange("kanban")}
-                  title="Visualização Pipeline Kanban"
-                >
-                  <LayoutDashboard size={13} />
-                  <span>Kanban</span>
-                </button>
-              </div>
-
-              {cities.length > 1 && (
-                <select
-                  className="city-filter-select"
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                >
-                  <option value="all">Todas as cidades ({cities.length})</option>
-                  {cities.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              <a
-                href={api.exportCsvUrl()}
-                download="prospector-leads.csv"
-                className="btn-export-csv"
-                title="Exportar base de leads em CSV compatível com Excel"
-              >
-                <Download size={14} />
-                <span>Exportar CSV</span>
-              </a>
-            </div>
-          </div>
-
-          {viewMode === "kanban" ? (
-            <KanbanBoard
-              leads={visible}
-              onSelectLead={setSelected}
-              onUpdateStage={handleUpdateStage}
-            />
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Empresa</th>
-                    <th>Contato</th>
-                    <th>Sinal</th>
-                    <th>Estágio</th>
-                    <th>Próxima ação</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((lead) => (
-                    <tr key={lead.id} onClick={() => setSelected(lead)}>
-                      <td>
-                        <div className="company">
-                          <span>{lead.name.slice(0, 2).toUpperCase()}</span>
-                          <div>
-                            <strong>
-                              {lead.name}
-                              {lead.demoUrl && (
-                                <span className="demo-live-badge" style={{ marginLeft: "6px", fontSize: "9px", padding: "1px 5px" }}>
-                                  Demo
-                                </span>
-                              )}
-                            </strong>
-                            <small>
-                              {lead.segment} · {lead.city} {lead.website ? "· com site" : "· sem site"}
-                            </small>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="table-contact-cell">
-                          {lead.hasWhatsapp && lead.whatsappUrl ? (
-                            <a
-                              href={lead.whatsappUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="table-wa-link"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Conversar no WhatsApp"
-                            >
-                              <MessageCircle size={14} /> WhatsApp
-                            </a>
-                          ) : lead.phone ? (
-                            <span className="table-phone-text">{lead.phone}</span>
-                          ) : (
-                            <span className="muted">–</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="score-cell">
-                          <Score value={lead.score} />
-                          <span className={`priority priority-${lead.priority}`}>
-                            {lead.priority === "urgent"
-                              ? "Urgente"
-                              : lead.priority === "high"
-                              ? "Alta"
-                              : lead.score
-                              ? "Média"
-                              : "A avaliar"}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <StagePill stage={lead.stage} />
-                      </td>
-                      <td>
-                        <span className="next-action">
-                          {lead.nextAction || "Pesquisar presença digital"}
-                        </span>
-                      </td>
-                      <td className="actions-cell">
-                        <div className="row-hover-actions">
-                          {lead.hasWhatsapp && lead.whatsappUrl && (
-                            <a
-                              href={lead.whatsappUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="row-action-btn wa"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Conversar no WhatsApp"
-                            >
-                              <MessageCircle size={14} />
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            className="row-action-btn proposal"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProposalModalLead(lead);
-                            }}
-                            title="Gerar Proposta Comercial"
-                          >
-                            <FileText size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-button"
-                            aria-label={`Abrir ${lead.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelected(lead);
-                            }}
-                          >
-                            <ChevronRight />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!visible.length && (
-                <div className="empty-state">
-                  <Search />
-                  <h3>Nenhum lead encontrado</h3>
-                  <p>Ajuste a busca ou volte a exibir todos os estágios.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        <section className="command">
-          <div className="command-copy">
-            <span className="eyebrow">Próxima melhor ação</span>
-            <h2>
-              {leads.some((lead) => lead.stage === "new")
-                ? `${leads.filter((lead) => lead.stage === "new").length} empresas aguardam análise`
-                : "Fila de análise concluída"}
-            </h2>
-            <p>
-              O agente organiza os fatos e sugere uma abordagem. Você revisa antes de qualquer contato.
-            </p>
-            <button
-              className="signal-button"
-              onClick={analyzeNext}
-              disabled={!leads.some((lead) => lead.stage === "new")}
-            >
-              <Sparkles />
-              Analisar próximo lead <ChevronRight />
-            </button>
-          </div>
-          <div className="radar" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <i />
-          </div>
-          <div className="attention">
-            <span>Em foco agora</span>
-            {leads
-              .filter((lead) => lead.score > 0)
-              .slice(0, 3)
-              .map((lead) => (
-                <button key={lead.id} onClick={() => setSelected(lead)}>
-                  <Score value={lead.score} />
-                  <div>
-                    <strong>{lead.name}</strong>
-                    <small>{lead.nextAction}</small>
-                  </div>
-                  <ChevronRight />
-                </button>
-              ))}
-          </div>
-        </section>
-
-        <section className="followups" id="followups">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Agenda comercial</span>
-              <h2>Próximos follow-ups</h2>
-            </div>
-            <span>
-              {followUps.length} agendado{followUps.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="followup-list">
-            {followUps.length ? (
-              followUps.slice(0, 4).map((lead) => (
-                <button key={lead.id} onClick={() => setSelected(lead)}>
-                  <span className="followup-date">
-                    <strong>
-                      {new Date(lead.nextFollowUp!).toLocaleDateString("pt-BR", { day: "2-digit" })}
-                    </strong>
-                    <small>
-                      {new Date(lead.nextFollowUp!)
-                        .toLocaleDateString("pt-BR", { month: "short" })
-                        .replace(".", "")}
-                    </small>
-                  </span>
-                  <span>
-                    <strong>{lead.name}</strong>
-                    <small>{lead.nextAction || "Retomar contato"}</small>
-                  </span>
-                  <ChevronRight />
-                </button>
-              ))
-            ) : (
-              <div className="followup-empty">
-                <Check />
-                <span>
-                  <strong>Agenda em dia</strong>
-                  <small>Defina a próxima data de contato na ficha de um lead.</small>
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="funnel" id="analytics">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Funil em movimento</span>
-              <h2>Da descoberta ao contrato</h2>
-            </div>
-            <div className="funnel-heading-actions">
-              <span>{dashboard?.contacted ?? 0} contatos iniciados</span>
-              <button
-                type="button"
-                className="secondary btn-sm"
-                onClick={() => setAnalyticsModalOpen(true)}
-              >
-                <BarChart3 size={14} />
-                <span>Ver Analytics de Conversão</span>
-              </button>
-            </div>
-          </div>
-          <div className="funnel-row">
-            {mainStages.map((stage, index) => (
-              <button key={stage} onClick={() => setFilter(stage)}>
-                <small>{String(index + 1).padStart(2, "0")}</small>
-                <strong>{dashboard?.stages?.[stage] ?? 0}</strong>
-                <span>{stageLabels[stage]}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+        {activeView === "integrations" && (
+          <IntegrationsView
+            onLeadSelect={(leadId) => {
+              const found = leads.find((l) => l.id === leadId);
+              if (found) setSelected(found);
+            }}
+            onLeadCreated={(newLead) => {
+              setLeads((items) => [newLead, ...items]);
+              setSelected(newLead);
+              void load();
+            }}
+          />
+        )}
 
         <footer>
           <span>Prospector CRM · decisões humanas, inteligência assistida</span>
@@ -2158,30 +710,68 @@ export function App() {
         </footer>
       </main>
 
+      {/* Navegação Mobile com as Telas Principais */}
       <nav className="mobile-nav" aria-label="Navegação principal">
-        <a href="#top">
+        <button
+          type="button"
+          className={activeView === "pipeline" ? "active" : ""}
+          onClick={() => setActiveView("pipeline")}
+        >
           <LayoutDashboard />
           <span>Visão geral</span>
-        </a>
-        <a href="#pipeline">
+        </button>
+        <button
+          type="button"
+          className={activeView === "pipeline" ? "active" : ""}
+          onClick={() => setActiveView("pipeline")}
+        >
           <Users />
           <span>Leads</span>
-        </a>
-        <a href="#followups">
+        </button>
+        <button
+          type="button"
+          className={activeView === "pipeline" ? "active" : ""}
+          onClick={() => setActiveView("pipeline")}
+        >
           <CalendarClock />
           <span>Follow-ups</span>
-          {followUps.length > 0 && <b>{followUps.length}</b>}
-        </a>
-        <button type="button" onClick={() => setApproachPlaybookOpen(true)}>
-          <BookOpen />
-          <span>Abordagens</span>
+          {todayFollowUps.length > 0 && <b>{todayFollowUps.length}</b>}
         </button>
-        <button type="button" onClick={() => setAnalyticsModalOpen(true)}>
+        <button
+          type="button"
+          className={activeView === "routine" ? "active" : ""}
+          onClick={() => setActiveView("routine")}
+        >
+          <Compass />
+          <span>Rotina</span>
+        </button>
+        <button
+          type="button"
+          className={activeView === "playbook" ? "active" : ""}
+          onClick={() => setActiveView("playbook")}
+        >
+          <BookOpen />
+          <span>Playbook</span>
+        </button>
+        <button
+          type="button"
+          className={activeView === "analytics" ? "active" : ""}
+          onClick={() => setActiveView("analytics")}
+        >
           <BarChart3 />
           <span>Analytics</span>
         </button>
+        <button
+          type="button"
+          className={activeView === "integrations" ? "active" : ""}
+          onClick={() => setActiveView("integrations")}
+        >
+          <Plug />
+          <span>MCP</span>
+        </button>
       </nav>
 
+      {/* Ficha do Lead Renovada (720px, 4 Abas) */}
       {selected && (
         <LeadDrawer
           lead={selected}
@@ -2205,6 +795,7 @@ export function App() {
         />
       )}
 
+      {/* Modais de Fechamento & Ferramentas Rápidas */}
       {roiModalLead && (
         <RoiCalculatorModal
           lead={roiModalLead}
@@ -2342,12 +933,12 @@ export function App() {
         }}
         onOpenCreateModal={() => setAddOpen(true)}
         onOpenBatchModal={() => setBatchOpen(true)}
-        onOpenPlaybook={() => setApproachPlaybookOpen(true)}
-        onOpenDaily={() => setProspectingOpen(true)}
-        onOpenAnalytics={() => setAnalyticsModalOpen(true)}
-        onOpenMcp={() => setMcpHubOpen(true)}
-        onToggleViewMode={() => handleViewModeChange(viewMode === "table" ? "kanban" : "table")}
-        viewMode={viewMode}
+        onOpenPlaybook={() => setActiveView("playbook")}
+        onOpenDaily={() => setActiveView("routine")}
+        onOpenAnalytics={() => setActiveView("analytics")}
+        onOpenMcp={() => setActiveView("integrations")}
+        onToggleViewMode={() => {}}
+        viewMode="table"
       />
     </div>
   );
