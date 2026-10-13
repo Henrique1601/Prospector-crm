@@ -2,7 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
-import { analyzeWithAi, demoBrief, localAnalysis } from "./ai.js";
+import { analyzeWithAi, demoBrief, generateDemoPackage, localAnalysis } from "./ai.js";
 import { fetchNotionDatabase, parseCsvToLeads } from "./importers.js";
 import { isValidIntegrationToken } from "./integration.js";
 import { ingestLeads, ingestLeadsInput } from "./lead-ingestion.js";
@@ -11,7 +11,7 @@ import { handleMcpRequest } from "./mcp.js";
 import { discoverProspectingLeads } from "./prospecting.js";
 import { generateScraperQueries, liveScrapeGoogleMaps, parseGoogleMapsScraperInput } from "./scraper.js";
 import { readStore, writeStore } from "./store.js";
-import { stages, type CityConversionStats, type ConversionAnalytics, type Lead, type SegmentConversionStats } from "./types.js";
+import { stages, type CityConversionStats, type ConversionAnalytics, type DemoVersion, type Lead, type SegmentConversionStats } from "./types.js";
 
 const app = express();
 app.use(cors());
@@ -650,6 +650,103 @@ app.post("/api/leads/:id/demo", async (req, res) => {
   if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
   lead.demoBrief = demoBrief(lead);
   lead.updatedAt = new Date().toISOString();
+  await writeStore(store);
+  res.json(lead);
+});
+
+const demoProjectTypeSchema = z.enum(["landing_page", "institutional_site", "catalog", "ecommerce"]);
+const demoPrimaryGoalSchema = z.enum(["quotes", "orders", "reservations", "appointments"]);
+const demoStatusSchema = z.enum(["briefing", "generating", "review", "ready", "sent", "approved"]);
+
+app.get("/api/leads/:id/demos", async (req, res) => {
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+  res.json(lead.demos || []);
+});
+
+app.post("/api/leads/:id/demos/offer", async (req, res) => {
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+
+  lead.demoInterest = "offered";
+  lead.demoStatus = "briefing";
+  lead.nextAction = "Confirmar interesse na demonstração";
+  lead.updatedAt = new Date().toISOString();
+  await writeStore(store);
+  res.json(lead);
+});
+
+app.post("/api/leads/:id/demos/generate", async (req, res) => {
+  const schema = z.object({
+    projectType: demoProjectTypeSchema,
+    primaryGoal: demoPrimaryGoalSchema,
+    informationConfirmed: z.literal(true)
+  });
+  const input = schema.parse(req.body);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+  if (lead.demoInterest !== "accepted") {
+    return res.status(409).json({ message: "Registre o aceite do cliente antes de gerar a demonstração" });
+  }
+
+  const generated = await generateDemoPackage(lead, input.projectType, input.primaryGoal);
+  const now = new Date().toISOString();
+  const demos = lead.demos || [];
+  const demo: DemoVersion = {
+    id: crypto.randomUUID(),
+    version: Math.max(0, ...demos.map((item) => item.version)) + 1,
+    status: "review",
+    projectType: input.projectType,
+    primaryGoal: input.primaryGoal,
+    informationConfirmed: true,
+    strategicSummary: generated.strategicSummary,
+    prompt: generated.prompt,
+    nextStep: generated.nextStep,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  lead.demos = [demo, ...demos];
+  lead.demoProjectType = input.projectType;
+  lead.demoPrimaryGoal = input.primaryGoal;
+  lead.demoInformationConfirmed = true;
+  lead.demoStrategicSummary = generated.strategicSummary;
+  lead.demoPrompt = generated.prompt;
+  lead.demoBrief = generated.strategicSummary;
+  lead.demoStatus = "review";
+  lead.suggestedMessages = { ...lead.suggestedMessages, direct: generated.offerMessage };
+  lead.nextAction = generated.nextStep;
+  lead.updatedAt = now;
+
+  await writeStore(store);
+  res.status(201).json(lead);
+});
+
+app.patch("/api/leads/:id/demos/:demoId", async (req, res) => {
+  const schema = z.object({
+    status: demoStatusSchema.optional(),
+    previewUrl: z.string().url().or(z.literal("")).optional(),
+    feedback: z.string().max(5000).optional(),
+    nextStep: z.string().max(1000).optional(),
+    followUpAt: z.string().datetime().optional()
+  });
+  const input = schema.parse(req.body);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+  const demo = lead.demos?.find((item) => item.id === req.params.demoId);
+  if (!demo) return res.status(404).json({ message: "Demonstração não encontrada" });
+
+  Object.assign(demo, input, { updatedAt: new Date().toISOString() });
+  lead.demoStatus = demo.status;
+  lead.demoUrl = demo.previewUrl || lead.demoUrl;
+  lead.nextAction = demo.nextStep || lead.nextAction;
+  lead.nextFollowUp = demo.followUpAt || lead.nextFollowUp;
+  lead.updatedAt = new Date().toISOString();
+
   await writeStore(store);
   res.json(lead);
 });
