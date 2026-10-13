@@ -2,7 +2,7 @@
 type: index
 project: Prospector CRM
 status: active
-updated: 2026-09-21
+updated: 2026-10-13
 tags:
   - prospector
   - crm
@@ -15,6 +15,7 @@ tags:
 
 ## Começar por aqui
 
+- [[Guia de Uso do CRM]] — manual atualizado da operação, contatos e demonstrações com IA
 - [[Product Vision]] — para quem o produto existe e qual problema resolve
 - [[Operating System]] — rotina diária e semanal de uso
 - [[Roadmap]] — agora, próximo e depois
@@ -36,7 +37,7 @@ tags:
 - [[Playbook - Demonstracoes e Mockups com Lovable]] — criação de protótipos de sites ao vivo
 - [[Playbook - Auditoria de Sites e Quebra de Objeções]] — auditorias técnicas de velocidade e SEO local
 - [[Playbook - Propostas Comerciais e Fechamento]] — propostas em PDF e contratos
-- [[Playbook - Rotina Diaria e Find Skills]] — rotina matinal e busca de novas skills
+- [[Playbook - Rotina Diaria e Find Skills]] — rotina de 10 contatos por dia e busca de novas skills
 - [[Playbook - Biblioteca de Prompts das Skills]] — comandos e prompts prontos para copiar e colar
 - [[Customer Discovery]]
 - [[Weekly Review]]
