@@ -1,5 +1,26 @@
 export type Stage = "new" | "analyzed" | "contacted" | "replied" | "meeting" | "proposal" | "won" | "lost";
 export type Priority = "low" | "medium" | "high" | "urgent";
+export type DemoInterest = "not_offered" | "offered" | "accepted" | "declined";
+export type DemoStatus = "briefing" | "generating" | "review" | "ready" | "sent" | "approved";
+export type DemoProjectType = "landing_page" | "institutional_site" | "catalog" | "ecommerce";
+export type DemoPrimaryGoal = "quotes" | "orders" | "reservations" | "appointments";
+
+export interface DemoVersion {
+  id: string;
+  version: number;
+  status: DemoStatus;
+  projectType: DemoProjectType;
+  primaryGoal: DemoPrimaryGoal;
+  informationConfirmed: boolean;
+  strategicSummary: string;
+  prompt: string;
+  previewUrl?: string;
+  feedback?: string;
+  nextStep?: string;
+  followUpAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Interaction {
   id: string;
@@ -44,6 +65,14 @@ export interface Lead {
   interactions: Interaction[];
   demoBrief?: string;
   demoUrl?: string;
+  demoInterest?: DemoInterest;
+  demoStatus?: DemoStatus;
+  demoProjectType?: DemoProjectType;
+  demoPrimaryGoal?: DemoPrimaryGoal;
+  demoInformationConfirmed?: boolean;
+  demoStrategicSummary?: string;
+  demoPrompt?: string;
+  demos?: DemoVersion[];
   createdAt: string;
   updatedAt: string;
   analyzedAt?: string;

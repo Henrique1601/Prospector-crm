@@ -1,4 +1,4 @@
-import type { ConversionAnalytics, DashboardData, Lead, ResolvedPlacePreview, Stage } from "./types";
+import type { ConversionAnalytics, DashboardData, DemoPrimaryGoal, DemoProjectType, DemoStatus, DemoVersion, Lead, ResolvedPlacePreview, Stage } from "./types";
 
 const productionApiUrl = "https://api-prospector-delta.vercel.app";
 const apiBaseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : productionApiUrl)).replace(/\/$/, "");
@@ -16,6 +16,12 @@ export const api = {
   health: () => request<{ ok: boolean; ai: boolean; mode: string; storage: "local-file" | "temporary" | "neon"; googleMaps?: boolean }>("/api/health"),
   analyze: (id: string) => request<Lead>(`/api/leads/${id}/analyze`, { method: "POST" }),
   demo: (id: string) => request<Lead>(`/api/leads/${id}/demo`, { method: "POST" }),
+  demos: (id: string) => request<DemoVersion[]>(`/api/leads/${id}/demos`),
+  offerDemo: (id: string) => request<Lead>(`/api/leads/${id}/demos/offer`, { method: "POST" }),
+  generateDemo: (id: string, body: { projectType: DemoProjectType; primaryGoal: DemoPrimaryGoal; informationConfirmed: true }) =>
+    request<Lead>(`/api/leads/${id}/demos/generate`, { method: "POST", body: JSON.stringify(body) }),
+  updateDemo: (leadId: string, demoId: string, body: { status?: DemoStatus; previewUrl?: string; feedback?: string; nextStep?: string; followUpAt?: string }) =>
+    request<Lead>(`/api/leads/${leadId}/demos/${demoId}`, { method: "PATCH", body: JSON.stringify(body) }),
   update: (id: string, body: Partial<Lead>) => request<Lead>(`/api/leads/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   add: (body: Partial<Lead>) => request<Lead>("/api/leads", { method: "POST", body: JSON.stringify(body) }),
   sendWebhookLead: (payload: Record<string, unknown>, token?: string) =>

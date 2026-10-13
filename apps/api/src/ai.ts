@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Lead, SuggestedMessages } from "./types.js";
+import type { DemoPrimaryGoal, DemoProjectType, Lead, SuggestedMessages } from "./types.js";
 
 const key = process.env.AISA_API_KEY;
 const client = key ? new OpenAI({ apiKey: key, baseURL: "https://api.aisa.one/v1" }) : null;
@@ -10,7 +10,8 @@ export const HENRIQUE_PROFILE = {
   portfolio: "https://bezerraportifolio.netlify.app/",
   linkedin: "www.linkedin.com/in/henriquebezerra-dev",
   whatsapp: "(13) 99138-3222",
-  email: "henriquebs1601@gmail.com"
+  email: "henriquebs1601@gmail.com",
+  localClient: "JM Motors, em Santos"
 };
 
 export async function analyzeWithAi(lead: Lead) {
@@ -29,7 +30,7 @@ Links do Henrique:
 - WhatsApp: ${HENRIQUE_PROFILE.whatsapp}
 - E-mail: ${HENRIQUE_PROFILE.email}
 
-Use somente os dados fornecidos sobre o lead; não invente contatos, endereços ou fatos.
+Henrique já atende a ${HENRIQUE_PROFILE.localClient}. Mencione essa experiência local naturalmente nas mensagens, sem inventar serviços, métricas ou resultados.\nUse somente os dados fornecidos sobre o lead; não invente contatos, endereços ou fatos.
 Retorne um JSON com:
 - score: número de 0 a 100
 - priority: "low" | "medium" | "high" | "urgent"
@@ -68,7 +69,7 @@ export function localAnalysis(lead: Lead): Partial<Lead> {
   const portfolio = hasSite
     ? `Olá! Conheci a ${lead.name} e reparei no site de vocês. Pensei em algumas melhorias pontuais para modernizar o visual, acelerar o carregamento no celular e aumentar a conversão de novos clientes direto pelo WhatsApp.
 
-Meu nome é Henrique, sou desenvolvedor web fullstack especializado em presença digital e sistemas para negócios.
+Meu nome é Henrique, sou desenvolvedor web fullstack e já atendo a ${HENRIQUE_PROFILE.localClient} especializado em presença digital e sistemas para negócios.
 
 O que eu faço:
 * Desenvolvo sites modernos, responsivos e otimizados para o Google (SEO)
@@ -88,7 +89,7 @@ Abraços,
 ${HENRIQUE_PROFILE.name}`
     : `Olá, vi que vocês ainda não possuem um site próprio e eu posso resolver esse problema.
 
-Meu nome é Henrique, sou desenvolvedor web fullstack especializado em criar presença digital para pequenos e médios negócios.
+Meu nome é Henrique, sou desenvolvedor web fullstack e já atendo a ${HENRIQUE_PROFILE.localClient} especializado em criar presença digital para pequenos e médios negócios.
 
 O que eu faço:
 * Desenvolvo sites modernos, responsivos e otimizados para buscas (SEO)
@@ -107,9 +108,9 @@ Meu e-mail de contato: ${HENRIQUE_PROFILE.email}
 Abraços,
 ${HENRIQUE_PROFILE.name}`;
 
-  const short = `Olá! Tudo bem? Sou o Henrique, desenvolvedor Full-Stack aqui da região. Conheci a ${lead.name} e notei uma excelente oportunidade para destacar a empresa no Google e facilitar o contato de clientes de ${lead.city} pelo WhatsApp. Posso te mostrar uma ideia rápida sem compromisso? (Meu portfólio: ${HENRIQUE_PROFILE.portfolio})`;
+  const short = `Olá! Tudo bem? Sou o Henrique, desenvolvedor Full-Stack aqui da região e já atendo a ${HENRIQUE_PROFILE.localClient}. Conheci a ${lead.name} e notei uma excelente oportunidade para destacar a empresa no Google e facilitar o contato de clientes de ${lead.city} pelo WhatsApp. Posso te mostrar uma ideia rápida sem compromisso? (Meu portfólio: ${HENRIQUE_PROFILE.portfolio})`;
 
-  const direct = `Olá equipe da ${lead.name}! Meu nome é Henrique, sou desenvolvedor web. Analisei a presença digital no segmento de ${lead.segment.toLowerCase()} em ${lead.city} e elaborei um briefing demonstrativo focado em atrair mais clientes para o WhatsApp de vocês. Posso te enviar o modelo sem compromisso para vocês avaliarem? Contato: ${HENRIQUE_PROFILE.whatsapp} | Portfólio: ${HENRIQUE_PROFILE.portfolio}`;
+  const direct = `Olá equipe da ${lead.name}! Meu nome é Henrique, sou desenvolvedor web e já atendo a ${HENRIQUE_PROFILE.localClient}. Analisei a presença digital no segmento de ${lead.segment.toLowerCase()} em ${lead.city} e elaborei um briefing demonstrativo focado em atrair mais clientes para o WhatsApp de vocês. Posso te enviar o modelo sem compromisso para vocês avaliarem? Contato: ${HENRIQUE_PROFILE.whatsapp} | Portfólio: ${HENRIQUE_PROFILE.portfolio}`;
 
   const curiosity = `Olá, tudo bem? Posso te fazer uma pergunta rápida?
 
@@ -161,4 +162,106 @@ Meu nome é Henrique, sou desenvolvedor web especializado na região. Preparei u
 
 export function demoBrief(lead: Lead) {
   return `DEMONSTRAÇÃO — ${lead.name}\n\nObjetivo: apresentar ${lead.segment.toLowerCase()} com clareza e levar visitantes ao contato pelo WhatsApp.\nPúblico: clientes de ${lead.city} e região.\nHeadline sugerida: ${lead.name}: atendimento confiável perto de você.\nSeções: proposta principal, serviços, diferenciais, localização, prova social e contato.\nCTA: Falar com a equipe no WhatsApp.\nDireção visual: linguagem local, fotografias reais do negócio e leitura ultra rápida no celular.\nObservação: confirmar serviços, telefone, horário e diferenciais com a empresa antes de publicar.`;
+}
+
+
+const demoProjectLabels: Record<DemoProjectType, string> = {
+  landing_page: "landing page",
+  institutional_site: "site institucional",
+  catalog: "catálogo digital",
+  ecommerce: "e-commerce"
+};
+
+const demoGoalLabels: Record<DemoPrimaryGoal, string> = {
+  quotes: "gerar pedidos de orçamento",
+  orders: "receber pedidos",
+  reservations: "receber reservas",
+  appointments: "receber agendamentos"
+};
+
+export interface DemoPackage {
+  strategicSummary: string;
+  prompt: string;
+  offerMessage: string;
+  nextStep: string;
+}
+
+export function localDemoPackage(
+  lead: Lead,
+  projectType: DemoProjectType,
+  primaryGoal: DemoPrimaryGoal
+): DemoPackage {
+  const projectLabel = demoProjectLabels[projectType];
+  const goalLabel = demoGoalLabels[primaryGoal];
+  const currentSite = lead.website || "não possui site oficial confirmado";
+
+  return {
+    strategicSummary: `${lead.name} atua no segmento de ${lead.segment} em ${lead.city}/${lead.state}. A oportunidade é criar um ${projectLabel} focado em ${goalLabel}, com navegação rápida no celular, SEO local e contato claro pelo WhatsApp. O site atual é: ${currentSite}. Antes da publicação, devem ser confirmados serviços, horários, telefone, endereço, identidade visual e provas sociais.`,
+    prompt: `Crie uma demonstração profissional de ${projectLabel} para ${lead.name}, empresa do segmento de ${lead.segment} localizada em ${lead.city}/${lead.state}.
+
+OBJETIVO PRINCIPAL
+${goalLabel}.
+
+DADOS CONFIRMADOS DISPONÍVEIS
+- Empresa: ${lead.name}
+- Segmento: ${lead.segment}
+- Cidade: ${lead.city}/${lead.state}
+- Endereço: ${lead.address || "não confirmado"}
+- Site atual: ${currentSite}
+- Telefone: ${lead.phone || "não confirmado"}
+- WhatsApp: ${lead.whatsappUrl || "não confirmado"}
+- Oportunidade: ${lead.opportunity || "fortalecer a presença digital local"}
+
+ESTRUTURA
+- Hero com proposta de valor e CTA
+- Serviços ou produtos
+- Diferenciais
+- Provas sociais somente se fornecidas
+- Localização
+- Contato e WhatsApp
+- SEO local e experiência mobile-first
+
+DIREÇÃO VISUAL
+Crie uma identidade profissional coerente com o segmento. Use conteúdo específico para a empresa, linguagem clara e alta legibilidade.
+
+REGRAS
+Não invente avaliações, métricas, preços, serviços, endereços ou resultados. Sinalize qualquer informação ausente como pendente de confirmação. A saída deve estar pronta para ser usada em Lovable, Bolt, v0, Replit ou outra IA construtora de sites.`,
+    offerMessage: `Olá! Com base no que analisei da ${lead.name}, posso preparar uma demonstração inicial sem compromisso para você visualizar como o novo site poderia ficar. Já atendo a ${HENRIQUE_PROFILE.localClient}, e posso montar uma proposta focada em ${goalLabel} e fortalecer sua presença no Google. Depois envio o link para você avaliar.`,
+    nextStep: "Revisar o briefing e o prompt antes de gerar a demonstração"
+  };
+}
+
+export async function generateDemoPackage(
+  lead: Lead,
+  projectType: DemoProjectType,
+  primaryGoal: DemoPrimaryGoal
+): Promise<DemoPackage> {
+  const fallback = localDemoPackage(lead, projectType, primaryGoal);
+  if (!client) return fallback;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: process.env.AISA_MODEL || "gpt-4.1",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `Você prepara briefings e prompts de demonstrações de sites para Henrique Bezerra. A IA prepara; Henrique revisa e envia. Nunca invente fatos. A experiência com a JM Motors em Santos pode ser citada, mas sem atribuir métricas, resultados ou serviços não confirmados. Retorne JSON com strategicSummary, prompt, offerMessage e nextStep.`
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ lead, projectType, primaryGoal, fallback })
+        }
+      ]
+    });
+    const parsed = JSON.parse(response.choices[0]?.message.content || "{}") as Partial<DemoPackage>;
+    return {
+      strategicSummary: parsed.strategicSummary || fallback.strategicSummary,
+      prompt: parsed.prompt || fallback.prompt,
+      offerMessage: parsed.offerMessage || fallback.offerMessage,
+      nextStep: parsed.nextStep || fallback.nextStep
+    };
+  } catch {
+    return fallback;
+  }
 }

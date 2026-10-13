@@ -67,7 +67,7 @@ import { BeforeAfterCardModal } from "./BeforeAfterCardModal";
 import { PublicProposalView } from "./PublicProposalView";
 import { McpHubModal } from "./McpHubModal";
 import { triggerConfetti } from "./Confetti";
-import type { DashboardData, Lead, Stage } from "./types";
+import type { DashboardData, DemoPrimaryGoal, DemoProjectType, Lead, Stage } from "./types";
 
 const stageLabels: Record<Stage, string> = {
   new: "Novo",
@@ -150,6 +150,16 @@ function LeadDrawer({
   const [isListening, setIsListening] = useState(false);
   const [selectedApproach, setSelectedApproach] = useState<ApproachType>("curiosity");
   const [demoUrlInput, setDemoUrlInput] = useState(lead.demoUrl || "");
+  const [demoForm, setDemoForm] = useState<{
+    projectType: DemoProjectType;
+    primaryGoal: DemoPrimaryGoal;
+    informationConfirmed: boolean;
+  }>({
+    projectType: lead.demoProjectType || "landing_page",
+    primaryGoal: lead.demoPrimaryGoal || "quotes",
+    informationConfirmed: Boolean(lead.demoInformationConfirmed)
+  });
+  const latestDemo = lead.demos?.[0];
 
   const handleToggleVoice = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -216,9 +226,14 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
       phone: lead.phone || "",
       address: lead.address || ""
     });
-    setDemoUrlInput(lead.demoUrl || "");
+    setDemoUrlInput(lead.demos?.[0]?.previewUrl || lead.demoUrl || "");
+    setDemoForm({
+      projectType: lead.demoProjectType || "landing_page",
+      primaryGoal: lead.demoPrimaryGoal || "quotes",
+      informationConfirmed: Boolean(lead.demoInformationConfirmed)
+    });
     setIsEditing(false);
-  }, [lead.id, lead.updatedAt, lead.demoUrl]);
+  }, [lead.id, lead.updatedAt, lead.demoUrl, lead.demoProjectType, lead.demoPrimaryGoal, lead.demoInformationConfirmed, lead.demos]);
 
   const act = async (name: string, fn: () => Promise<Lead>) => {
     setBusy(name);
@@ -263,7 +278,11 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
   };
 
   const handleSaveDemoUrl = async () => {
-    await act("save-demo-url", () => api.update(lead.id, { demoUrl: demoUrlInput }));
+    await act("save-demo-url", () =>
+      latestDemo
+        ? api.updateDemo(lead.id, latestDemo.id, { previewUrl: demoUrlInput })
+        : api.update(lead.id, { demoUrl: demoUrlInput })
+    );
   };
 
   const approachNames: Record<ApproachType, string> = {
@@ -647,89 +666,231 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
           />
         </section>
 
-        {/* Demonstração & Protótipo Lovable */}
-        <section className="drawer-card drawer-demo-card">
+        {/* Fluxo de Demonstração com IA */}
+        <section className="drawer-card drawer-demo-card demo-workflow-card">
           <div className="section-title">
-            <h3>Demonstração & Landing Page</h3>
-            {lead.demoUrl && (
-              <a href={lead.demoUrl} target="_blank" rel="noreferrer" className="demo-live-badge">
-                <ExternalLink size={12} /> Ver Online
+            <div>
+              <span className="eyebrow">Human-in-the-loop</span>
+              <h3>Demonstração com IA</h3>
+            </div>
+            {latestDemo?.previewUrl && (
+              <a href={latestDemo.previewUrl} target="_blank" rel="noreferrer" className="demo-live-badge">
+                <ExternalLink size={12} /> Ver V{latestDemo.version}
               </a>
             )}
           </div>
-          {lead.demoBrief ? (
-            <div className="demo-brief-container">
-              <span className="demo-brief-eyebrow">Briefing do Projeto</span>
-              <pre className="brief">{lead.demoBrief}</pre>
-            </div>
-          ) : (
-            <p className="drawer-empty-text">Gere um briefing de landing page sob medida ou vincule um protótipo construído no Lovable.</p>
-          )}
-          <button
-            className="primary full demo-action-btn"
-            disabled={busy === "demo"}
-            onClick={() => act("demo", () => api.demo(lead.id))}
-          >
-            <Bot size={16} />
-            {busy === "demo" ? "Preparando…" : "Gerar briefing da demonstração"}
-          </button>
 
-          {/* Templates Setoriais Lovable */}
-          <div className="demo-templates-box">
-            <span className="demo-templates-label">Templates Prontos por Nicho:</span>
-            <div className="demo-templates-grid">
-              {[
-                { label: "🦷 Odonto", url: "https://preview--odonto-santos.lovable.app" },
-                { label: "🍔 Gastronomia", url: "https://preview--burger-santos.lovable.app" },
-                { label: "🏠 Imobiliária", url: "https://preview--imob-santos.lovable.app" },
-                { label: "💅 Estética", url: "https://preview--beleza-santos.lovable.app" },
-                { label: "🚗 Auto Center", url: "https://preview--auto-santos.lovable.app" }
-              ].map((tpl) => (
-                <button
-                  key={tpl.label}
-                  type="button"
-                  className="demo-tpl-pill"
-                  onClick={() => {
-                    setDemoUrlInput(tpl.url);
-                    act("save-demo-url", () => api.update(lead.id, { demoUrl: tpl.url }));
-                  }}
-                  title={`Vincular modelo de ${tpl.label}`}
-                >
-                  {tpl.label}
-                </button>
-              ))}
-            </div>
+          <div className="demo-workflow-status">
+            <label className="field">
+              <span>Interesse do cliente</span>
+              <select
+                value={lead.demoInterest || "not_offered"}
+                onChange={(e) =>
+                  act("demo-interest", () =>
+                    api.update(lead.id, { demoInterest: e.target.value as Lead["demoInterest"] })
+                  )
+                }
+              >
+                <option value="not_offered">Não oferecida</option>
+                <option value="offered">Oferecida</option>
+                <option value="accepted">Aceita</option>
+                <option value="declined">Recusada</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Status</span>
+              <input value={lead.demoStatus || "Aguardando aceite"} readOnly />
+            </label>
           </div>
 
+          {lead.demoInterest === "not_offered" || !lead.demoInterest ? (
+            <button
+              className="secondary full"
+              disabled={busy === "offer-demo"}
+              onClick={() => act("offer-demo", () => api.offerDemo(lead.id))}
+            >
+              <MessageCircle size={16} />
+              {busy === "offer-demo" ? "Preparando…" : "Preparar oferta de demonstração"}
+            </button>
+          ) : null}
+
+          <div className="demo-workflow-status">
+            <label className="field">
+              <span>Tipo de projeto</span>
+              <select
+                value={demoForm.projectType}
+                onChange={(e) => setDemoForm({ ...demoForm, projectType: e.target.value as DemoProjectType })}
+              >
+                <option value="landing_page">Landing page</option>
+                <option value="institutional_site">Site institucional</option>
+                <option value="catalog">Catálogo digital</option>
+                <option value="ecommerce">E-commerce</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Objetivo principal</span>
+              <select
+                value={demoForm.primaryGoal}
+                onChange={(e) => setDemoForm({ ...demoForm, primaryGoal: e.target.value as DemoPrimaryGoal })}
+              >
+                <option value="quotes">Orçamentos</option>
+                <option value="orders">Pedidos</option>
+                <option value="reservations">Reservas</option>
+                <option value="appointments">Agendamentos</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="demo-confirmation-check">
+            <input
+              type="checkbox"
+              checked={demoForm.informationConfirmed}
+              onChange={(e) => setDemoForm({ ...demoForm, informationConfirmed: e.target.checked })}
+            />
+            <span>
+              <strong>Informações confirmadas</strong>
+              Telefone, endereço, serviços e identidade visual foram revisados.
+            </span>
+          </label>
+
+          <button
+            className="primary full demo-action-btn"
+            disabled={
+              busy === "generate-demo" ||
+              lead.demoInterest !== "accepted" ||
+              !demoForm.informationConfirmed
+            }
+            onClick={() =>
+              act("generate-demo", () =>
+                api.generateDemo(lead.id, {
+                  projectType: demoForm.projectType,
+                  primaryGoal: demoForm.primaryGoal,
+                  informationConfirmed: true
+                })
+              )
+            }
+            title={
+              lead.demoInterest !== "accepted"
+                ? "Registre o aceite do cliente primeiro"
+                : !demoForm.informationConfirmed
+                ? "Confirme os dados antes de gerar"
+                : "Gerar briefing e prompt"
+            }
+          >
+            <Bot size={16} />
+            {busy === "generate-demo"
+              ? "Gerando briefing e prompt…"
+              : latestDemo
+              ? "Gerar nova versão"
+              : "Gerar briefing e prompt com IA"}
+          </button>
+
+          {latestDemo ? (
+            <div className="demo-version-panel">
+              <div className="demo-version-header">
+                <div>
+                  <span className="demo-brief-eyebrow">Versão V{latestDemo.version}</span>
+                  <strong>{latestDemo.status}</strong>
+                </div>
+                <select
+                  value={latestDemo.status}
+                  onChange={(e) =>
+                    act("demo-status", () =>
+                      api.updateDemo(lead.id, latestDemo.id, {
+                        status: e.target.value as import("./types").DemoStatus
+                      })
+                    )
+                  }
+                >
+                  <option value="review">Em revisão</option>
+                  <option value="ready">Pronta</option>
+                  <option value="sent">Enviada</option>
+                  <option value="approved">Aprovada</option>
+                  <option value="generating">Gerando</option>
+                  <option value="briefing">Briefing</option>
+                </select>
+              </div>
+
+              <div className="demo-copy-block">
+                <div className="section-title">
+                  <h4>Resumo estratégico</h4>
+                  <button
+                    className="copy-action-btn"
+                    onClick={() => navigator.clipboard.writeText(latestDemo.strategicSummary)}
+                  >
+                    <Copy size={13} /> Copiar
+                  </button>
+                </div>
+                <p>{latestDemo.strategicSummary}</p>
+              </div>
+
+              <div className="demo-copy-block">
+                <div className="section-title">
+                  <h4>Prompt para a IA construtora</h4>
+                  <button
+                    className="copy-action-btn"
+                    onClick={() => navigator.clipboard.writeText(latestDemo.prompt)}
+                  >
+                    <Copy size={13} /> Copiar prompt
+                  </button>
+                </div>
+                <pre className="brief">{latestDemo.prompt}</pre>
+              </div>
+
+              {lead.demos && lead.demos.length > 1 && (
+                <div className="demo-version-history">
+                  {lead.demos.slice(1).map((demo) => (
+                    <span key={demo.id}>V{demo.version} · {demo.status}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="drawer-empty-text">
+              O briefing e o prompt aparecerão aqui depois do aceite e da confirmação dos dados.
+            </p>
+          )}
+
           <div className="drawer-demo-url-box">
-            <span className="demo-url-label">Link do Protótipo / Demonstração (ex: Lovable)</span>
+            <span className="demo-url-label">Link da demonstração</span>
             <div className="input-action-row">
               <input
                 type="url"
-                placeholder="https://preview--lead.lovable.app"
+                placeholder="https://preview--cliente.lovable.app"
                 value={demoUrlInput}
                 onChange={(e) => setDemoUrlInput(e.target.value)}
               />
               <button
                 type="button"
                 className="secondary"
-                disabled={busy === "save-demo-url"}
+                disabled={busy === "save-demo-url" || !demoUrlInput.trim()}
                 onClick={handleSaveDemoUrl}
               >
-                {busy === "save-demo-url" ? "Salvando..." : "Salvar Link"}
+                {busy === "save-demo-url" ? "Salvando…" : "Salvar link"}
               </button>
             </div>
-            {lead.demoUrl && (
-              <a
-                href={lead.demoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="demo-direct-link"
-              >
-                <ExternalLink size={13} /> Abrir protótipo Lovable em nova aba
-              </a>
-            )}
           </div>
+
+          {latestDemo && (
+            <label className="field">
+              <span>Feedback ou próximo ajuste</span>
+              <textarea
+                defaultValue={latestDemo.feedback || ""}
+                placeholder="Registre o retorno do cliente para gerar a próxima versão."
+                onBlur={(e) => {
+                  const feedback = e.target.value.trim();
+                  if (feedback !== (latestDemo.feedback || "")) {
+                    act("demo-feedback", () =>
+                      api.updateDemo(lead.id, latestDemo.id, {
+                        feedback,
+                        nextStep: feedback ? "Revisar feedback e preparar nova versão" : latestDemo.nextStep
+                      })
+                    );
+                  }
+                }}
+              />
+            </label>
+          )}
         </section>
 
         {/* Agendamento de Follow-up */}
