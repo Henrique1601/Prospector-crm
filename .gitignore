@@ -1,11 +1,26 @@
-node_modules/
-dist/
+# Ambientes e Secrets
 .env
 .env.*
+.env*.local
 !.env.example
+*.pem
+*.key
+
+# Dependências e Builds
+node_modules/
+dist/
+build/
 coverage/
-apps/api/data/store.json
-*.log
-.DS_Store
 *.tsbuildinfo
 scraper-out/
+
+# Dados locais e persistência de dev
+apps/api/data/store.json
+
+# Tooling, Logs & IDEs
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
