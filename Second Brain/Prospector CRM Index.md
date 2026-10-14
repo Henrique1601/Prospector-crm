@@ -44,6 +44,7 @@ tags:
 
 ## Integrações
 
+- [[Integracao n8n e Automacoes]] — fluxos no n8n com Evolution API, follow-ups diários e Apify
 - [[Notion Integration Plan]]
 
 ## Templates

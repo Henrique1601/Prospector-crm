@@ -133,10 +133,51 @@ app.post("/api/mcp/test-connection", async (req, res) => {
 
 app.get("/api/leads", async (req, res) => {
   const store = await readStore();
-  const query = String(req.query.q || "").toLowerCase();
+  const query = String(req.query.q || req.query.query || "").toLowerCase();
+  const phoneParam = req.query.phone ? String(req.query.phone).replace(/\D/g, "") : "";
   const stage = String(req.query.stage || "all");
-  const leads = store.leads.filter((lead) => (!query || `${lead.name} ${lead.segment} ${lead.city}`.toLowerCase().includes(query)) && (stage === "all" || lead.stage === stage));
+  const leads = store.leads.filter((lead) => {
+    const matchesStage = stage === "all" || lead.stage === stage;
+    if (!matchesStage) return false;
+
+    if (phoneParam) {
+      const cleanLeadPhone = (lead.phone || "").replace(/\D/g, "");
+      const cleanWaUrl = (lead.whatsappUrl || "").replace(/\D/g, "");
+      const matchesPhone =
+        (cleanLeadPhone && (cleanLeadPhone.includes(phoneParam) || phoneParam.includes(cleanLeadPhone))) ||
+        (cleanWaUrl && (cleanWaUrl.includes(phoneParam) || phoneParam.includes(cleanWaUrl)));
+      if (matchesPhone) return true;
+    }
+
+    if (!query) return !phoneParam;
+
+    const searchable = `${lead.name} ${lead.segment} ${lead.city} ${lead.phone || ""}`.toLowerCase();
+    const cleanNumbersQuery = query.replace(/\D/g, "");
+    if (cleanNumbersQuery.length >= 8) {
+      const cleanLeadPhone = (lead.phone || "").replace(/\D/g, "");
+      const cleanWaUrl = (lead.whatsappUrl || "").replace(/\D/g, "");
+      if (
+        (cleanLeadPhone && cleanLeadPhone.includes(cleanNumbersQuery)) ||
+        (cleanWaUrl && cleanWaUrl.includes(cleanNumbersQuery))
+      ) {
+        return true;
+      }
+    }
+    return searchable.includes(query);
+  });
   res.json(leads.sort((a, b) => b.score - a.score));
+});
+
+app.patch("/api/leads/:id/stage", async (req, res) => {
+  const schema = z.object({ stage: z.enum(stages) });
+  const { stage } = schema.parse(req.body);
+  const store = await readStore();
+  const lead = store.leads.find((item) => item.id === req.params.id);
+  if (!lead) return res.status(404).json({ message: "Lead não encontrado" });
+  lead.stage = stage;
+  lead.updatedAt = new Date().toISOString();
+  await writeStore(store);
+  res.json(lead);
 });
 
 app.get("/api/leads/export/csv", async (_req, res) => {

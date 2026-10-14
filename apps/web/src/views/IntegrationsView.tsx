@@ -18,9 +18,15 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  Workflow,
+  Download,
+  Bell,
+  Calendar,
+  MessageSquare,
   Zap
 } from "lucide-react";
 import { api, apiBaseUrl } from "../api";
+import { n8nWorkflows } from "../n8n-templates";
 import type { Lead, McpStatusResponse, McpTestResponse } from "../types";
 
 interface IntegrationsViewProps {
@@ -28,7 +34,7 @@ interface IntegrationsViewProps {
   onLeadCreated?: (lead: Lead) => void;
 }
 
-type TabType = "mcp" | "snippets" | "webhook";
+type TabType = "mcp" | "snippets" | "webhook" | "n8n";
 type ClientType = "claude" | "cursor" | "curl";
 
 export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsViewProps) {
@@ -74,6 +80,18 @@ export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsVi
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleDownloadJson = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleTestConnection = async () => {
@@ -272,6 +290,14 @@ export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsVi
         >
           <Layers size={15} />
           <span>Webhook de Leads & Simulador</span>
+        </button>
+        <button
+          type="button"
+          className={`view-tab-btn ${activeTab === "n8n" ? "active" : ""}`}
+          onClick={() => setActiveTab("n8n")}
+        >
+          <Workflow size={15} />
+          <span>Workflows n8n & WhatsApp</span>
         </button>
       </div>
 
@@ -586,6 +612,194 @@ export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsVi
                   <p>{webhookResult}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: n8n & WhatsApp Automation Workflows */}
+      {activeTab === "n8n" && (
+        <div className="view-grid-two-cols">
+          {/* Left Column: Workflows list */}
+          <div className="view-card">
+            <div className="card-title-row">
+              <div>
+                <span className="eyebrow">Automação Pragmática</span>
+                <h3>Templates n8n Prontos para Uso</h3>
+              </div>
+              <span className="badge-count">3 fluxos</span>
+            </div>
+            <p className="subtle-desc">
+              Importe diretamente no seu n8n via <code>Import from File</code> ou copie o JSON. Nenhum disparo de proposta ou venda é feito sem sua aprovação prévia.
+            </p>
+
+            <div className="n8n-workflows-list">
+              {n8nWorkflows.map((wf) => (
+                <div key={wf.id} className="card-inner-box n8n-workflow-item">
+                  <div className="n8n-wf-header">
+                    <div>
+                      <span className="badge-pill">{wf.badge}</span>
+                      <h4 className="n8n-wf-title">{wf.title}</h4>
+                      <p className="n8n-wf-trigger">
+                        <strong>Gatilho:</strong> {wf.trigger}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="n8n-wf-desc">{wf.description}</p>
+
+                  <ul className="n8n-highlights-list">
+                    {wf.highlights.map((h, i) => (
+                      <li key={i}>
+                        <Check size={13} className="text-emerald" />
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="n8n-actions-row">
+                    <button
+                      type="button"
+                      className="secondary btn-sm"
+                      onClick={() => handleCopy(wf.jsonContent, wf.id)}
+                    >
+                      {copiedKey === wf.id ? (
+                        <>
+                          <Check size={14} className="text-emerald" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} />
+                          <span>Copiar JSON</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary btn-sm"
+                      onClick={() => handleDownloadJson(wf.filename, wf.jsonContent)}
+                    >
+                      <Download size={14} />
+                      <span>Baixar .json</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Env variables & Evolution API guide */}
+          <div className="view-card-column">
+            {/* Env Vars Card */}
+            <div className="view-card">
+              <div className="card-title-row">
+                <div>
+                  <span className="eyebrow">Ambiente n8n</span>
+                  <h3>Variáveis de Configuração</h3>
+                </div>
+                <button
+                  type="button"
+                  className="secondary btn-sm"
+                  onClick={() =>
+                    handleCopy(
+                      `PROSPECTOR_API_URL=${apiBaseUrl || "https://api-prospector-delta.vercel.app"}\nPROSPECTOR_WEB_URL=https://prospector-crm-pessoal.vercel.app\nHENRIQUE_WHATSAPP_NUMBER=5513991383222\nEVOLUTION_API_URL=https://sua-evolution-api.com\nEVOLUTION_API_KEY=sua_chave_aqui\nEVOLUTION_INSTANCE=principal\nAPIFY_API_TOKEN=seu_token_apify`,
+                      "env-vars"
+                    )
+                  }
+                >
+                  {copiedKey === "env-vars" ? (
+                    <>
+                      <Check size={14} className="text-emerald" />
+                      <span>Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copiar .env</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="subtle-desc">
+                Adicione estas variáveis em <strong>Settings &gt; Variables</strong> do n8n para que todos os workflows funcionem automaticamente:
+              </p>
+
+              <div className="code-box-dock">
+                <pre className="code-view">
+{`PROSPECTOR_API_URL=${apiBaseUrl || "https://api-prospector-delta.vercel.app"}
+PROSPECTOR_WEB_URL=https://prospector-crm-pessoal.vercel.app
+HENRIQUE_WHATSAPP_NUMBER=5513991383222
+EVOLUTION_API_URL=https://sua-evolution-api.com
+EVOLUTION_API_KEY=sua_chave_aqui
+EVOLUTION_INSTANCE=principal
+APIFY_API_TOKEN=seu_token_apify`}
+                </pre>
+              </div>
+            </div>
+
+            {/* Evolution Webhook Card */}
+            <div className="view-card">
+              <div className="card-title-row">
+                <div>
+                  <span className="eyebrow">Evolution API</span>
+                  <h3>Configuração do Webhook</h3>
+                </div>
+                <button
+                  type="button"
+                  className="secondary btn-sm"
+                  onClick={() =>
+                    handleCopy(
+                      JSON.stringify(
+                        {
+                          enabled: true,
+                          url: "https://seu-n8n.com/webhook/evolution-messages-upsert",
+                          webhook_by_events: false,
+                          events: ["MESSAGES_UPSERT"]
+                        },
+                        null,
+                        2
+                      ),
+                      "evo-webhook"
+                    )
+                  }
+                >
+                  {copiedKey === "evo-webhook" ? (
+                    <>
+                      <Check size={14} className="text-emerald" />
+                      <span>Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copiar JSON</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="subtle-desc">
+                No painel da Evolution API ou na rota <code>POST /webhook/set/principal</code>, cadastre este endpoint para acionar o Workflow 2:
+              </p>
+
+              <div className="code-box-dock">
+                <pre className="code-view">
+{`{
+  "enabled": true,
+  "url": "https://seu-n8n.com/webhook/evolution-messages-upsert",
+  "webhook_by_events": false,
+  "events": [
+    "MESSAGES_UPSERT"
+  ]
+}`}
+                </pre>
+              </div>
+
+              <div className="webhook-hint-box" style={{ marginTop: "1rem" }}>
+                <ShieldCheck size={16} />
+                <p>
+                  <strong>Human-in-the-Loop garantido:</strong> O n8n apenas altera o status para <em>Respondeu</em>, registra a mensagem no histórico e notifica você no WhatsApp pessoal. Nenhuma mensagem externa de venda sai sem seu clique.
+                </p>
+              </div>
             </div>
           </div>
         </div>

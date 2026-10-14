@@ -1,0 +1,141 @@
+{
+  "name": "Prospector CRM - 01 - Resumo Matinal de Follow-ups (WhatsApp)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-0830",
+      "name": "Disparo Matinal (08:30 Seg-Sex)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PROSPECTOR_API_URL || 'https://api-prospector-delta.vercel.app' }}/api/leads",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "node-get-leads",
+      "name": "Buscar Leads no CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $input.all().map(item => item.json);\n\n// Obter a data de hoje no fuso horário do Brasil (UTC-3)\nconst now = new Date();\nconst brasilDateStr = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'America/Sao_Paulo',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n}).format(now); // Formato: YYYY-MM-DD\n\n// Filtrar leads com follow-up agendado para hoje\nconst todayFollowUps = leads.filter(lead => {\n  if (!lead.nextFollowUp) return false;\n  const fDate = lead.nextFollowUp.substring(0, 10);\n  return fDate === brasilDateStr && !['won', 'lost'].includes(lead.stage);\n});\n\n// Leads que responderam recentemente e aguardam próximo passo\nconst repliedPending = leads.filter(lead => lead.stage === 'replied');\n\n// Leads quentes de alta prioridade ainda não contactados\nconst hotLeads = leads.filter(lead => lead.priority === 'urgent' && ['new', 'analyzed'].includes(lead.stage)).slice(0, 3);\n\nconst totalFollowUps = todayFollowUps.length;\nconst crmWebUrl = $env.PROSPECTOR_WEB_URL || 'https://prospector-crm-pessoal.vercel.app';\n\nlet messageText = `🌅 *Bom dia, Henrique!*\\nAqui está seu radar matinal do *Prospector CRM* (${brasilDateStr}):\\n\\n`;\n\nif (totalFollowUps > 0) {\n  messageText += `📅 *Follow-ups Agendados para Hoje (${totalFollowUps}):*\\n`;\n  todayFollowUps.forEach((lead, idx) => {\n    messageText += `${idx + 1}. *${lead.name}* (${lead.segment || 'Geral'} · ${lead.city || 'Santos'})\\n`;\n    messageText += `   👉 Ação: ${lead.nextAction || 'Entrar em contato'}\\n`;\n    messageText += `   🔗 Link: ${crmWebUrl}/?lead=${lead.id}\\n\\n`;\n  });\n} else {\n  messageText += `✅ *Nenhum follow-up específico agendado para hoje.*\\n\\n`;\n}\n\nif (repliedPending.length > 0) {\n  messageText += `💬 *Leads que Responderam aguardando avanço (${repliedPending.length}):*\\n`;\n  repliedPending.slice(0, 3).forEach(lead => {\n    messageText += `• *${lead.name}* (Score: ${lead.score}/100)\\n`;\n  });\n  messageText += `\\n`;\n}\n\nif (hotLeads.length > 0) {\n  messageText += `🔥 *Oportunidades Quentes para Abordar:*\\n`;\n  hotLeads.forEach(lead => {\n    messageText += `• *${lead.name}* (${lead.city}) — Sem site próprio\\n`;\n  });\n  messageText += `\\n`;\n}\n\nmessageText += `🎯 *Meta do Dia:* 5 novas abordagens pelo Playbook.\\n`;\nmessageText += `👉 Acesse o CRM: ${crmWebUrl}\\n\\nÓtimos negócios e bons fechamentos! 🚀`;\n\nreturn [{\n  json: {\n    messageText,\n    totalFollowUps,\n    recipientNumber: $env.HENRIQUE_WHATSAPP_NUMBER || '5513991383222'\n  }\n}];"
+      },
+      "id": "node-filter-followups",
+      "name": "Filtrar Follow-ups & Gerar Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE || 'principal' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.recipientNumber }}\",\n  \"text\": {{ JSON.stringify($json.messageText) }}\n}",
+        "options": {}
+      },
+      "id": "node-send-whatsapp",
+      "name": "Enviar WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Disparo Matinal (08:30 Seg-Sex)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Leads no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Leads no CRM": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Follow-ups & Gerar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Follow-ups & Gerar Texto": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp (Evolution API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prospector-crm-n8n"
+  },
+  "tags": [
+    {
+      "name": "Prospector CRM"
+    },
+    {
+      "name": "WhatsApp"
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "name": "Prospector CRM - 02 - Lead Respondeu no WhatsApp (Auto Stage & Alerta)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-messages-upsert",
+        "options": {}
+      },
+      "id": "node-webhook-evolution",
+      "name": "Webhook Evolution API (MESSAGES_UPSERT)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        180,
+        300
+      ],
+      "webhookId": "evolution-messages-upsert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Suporte tanto para payload direto quanto aninhado da Evolution API\nconst data = body.data || body;\nconst key = data.key || {};\nconst message = data.message || {};\n\n// 1. Ignorar mensagens enviadas por nós mesmos\nif (key.fromMe === true) {\n  return [];\n}\n\n// 2. Ignorar mensagens de grupos (@g.us)\nconst remoteJid = key.remoteJid || '';\nif (remoteJid.includes('@g.us') || remoteJid.includes('status@broadcast')) {\n  return [];\n}\n\n// 3. Extrair telefone limpo apenas com dígitos\nconst rawNumber = remoteJid.split('@')[0] || '';\nconst senderPhone = rawNumber.replace(/\\D/g, '');\n\n// 4. Extrair texto da mensagem\nconst messageText =\n  message.conversation ||\n  message.extendedTextMessage?.text ||\n  message.imageMessage?.caption ||\n  message.videoMessage?.caption ||\n  '';\n\nif (!messageText || messageText.trim() === '') {\n  return []; // Ignora áudios sem transcrição ou figurinhas por enquanto\n}\n\nconst pushName = data.pushName || 'Contato';\n\nreturn [{\n  json: {\n    senderPhone,\n    messageText: messageText.trim(),\n    pushName,\n    remoteJid,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-filter-evolution",
+      "name": "Filtrar Evento Evolution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PROSPECTOR_API_URL || 'https://api-prospector-delta.vercel.app' }}/api/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.senderPhone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-search-lead",
+      "name": "Buscar Lead no CRM por Telefone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-lead-found",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : ($json.id ? 1 : 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-lead-found",
+      "name": "Lead Encontrado no CRM?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.PROSPECTOR_API_URL || 'https://api-prospector-delta.vercel.app' }}/api/leads/{{ Array.isArray($json) ? $json[0].id : $json.id }}/stage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"stage\": \"replied\"\n}",
+        "options": {}
+      },
+      "id": "node-update-stage",
+      "name": "Atualizar Estágio para 'replied'",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PROSPECTOR_API_URL || 'https://api-prospector-delta.vercel.app' }}/api/leads/{{ $json.id }}/interactions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"whatsapp\",\n  \"content\": {{ JSON.stringify(\"Cliente respondeu no WhatsApp: \\\"\" + $('Filtrar Evento Evolution').item.json.messageText + \"\\\"\") }}\n}",
+        "options": {}
+      },
+      "id": "node-add-interaction",
+      "name": "Registrar Nota no Histórico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE || 'principal' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $env.HENRIQUE_WHATSAPP_NUMBER || '5513991383222' }}\",\n  \"text\": {{ JSON.stringify(\"🔔 *RESPOSTA RECEBIDA NO WHATSAPP!*\\n\\n🏢 *Empresa:* \" + $json.name + \"\\n📍 *Cidade:* \" + ($json.city || 'Santos') + \" (\" + ($json.segment || 'Geral') + \")\\n📞 *Telefone:* \" + ($json.phone || '') + \"\\n\\n💬 *Mensagem do Cliente:*\\n\\\"\" + $('Filtrar Evento Evolution').item.json.messageText + \"\\\"\\n\\n⚡ *Status:* Card movido para 'Respondeu' automaticamente!\\n👉 *Abra o CRM para ver o roteiro de objeção e fechar a reunião:*\\n\" + ($env.PROSPECTOR_WEB_URL || 'https://prospector-crm-pessoal.vercel.app') + \"/?lead=\" + $json.id) }}\n}",
+        "options": {}
+      },
+      "id": "node-alert-henrique",
+      "name": "Alertar WhatsApp Henrique",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution API (MESSAGES_UPSERT)": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Evento Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Evento Evolution": {
+      "main": [
+        [
+          {
+            "node": "Buscar Lead no CRM por Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Lead no CRM por Telefone": {
+      "main": [
+        [
+          {
+            "node": "Lead Encontrado no CRM?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Encontrado no CRM?": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Estágio para 'replied'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Estágio para 'replied'": {
+      "main": [
+        [
+          {
+            "node": "Registrar Nota no Histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Nota no Histórico": {
+      "main": [
+        [
+          {
+            "node": "Alertar WhatsApp Henrique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prospector-crm-n8n"
+  },
+  "tags": [
+    {
+      "name": "Prospector CRM"
+    },
+    {
+      "name": "Evolution API"
+    },
+    {
+      "name": "WhatsApp"
+    }
+  ]
+}

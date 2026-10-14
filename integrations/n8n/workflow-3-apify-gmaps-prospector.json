@@ -1,0 +1,224 @@
+{
+  "name": "Prospector CRM - 03 - Scraper Google Maps (Apify) com Qualificação IA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-weekly",
+      "name": "Disparo Semanal (Segunda 08:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lista de nichos rotativos de alto valor na Baixada Santista\nconst niches = [\n  { query: 'Clínica Odontológica em Santos SP', segment: 'Odontologia', city: 'Santos' },\n  { query: 'Oficina Mecânica em Santos SP', segment: 'Oficina Mecânica', city: 'Santos' },\n  { query: 'Restaurante e Hamburgueria em Praia Grande SP', segment: 'Gastronomia', city: 'Praia Grande' },\n  { query: 'Clínica de Estética em Santos SP', segment: 'Estética', city: 'Santos' },\n  { query: 'Pet Shop e Veterinária em São Vicente SP', segment: 'Pet Care', city: 'São Vicente' }\n];\n\n// Seleciona um nicho com base na semana do ano para rodízio automático\nconst weekNumber = Math.floor((new Date().getTime() / (1000 * 60 * 60 * 24 * 7)) % niches.length);\nconst selected = niches[weekNumber];\n\nreturn [{\n  json: {\n    searchQuery: selected.query,\n    segment: selected.segment,\n    city: selected.city,\n    maxCrawledPlacesPerSearch: 10\n  }\n}];"
+      },
+      "id": "node-setup-query",
+      "name": "Definir Nicho & Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.APIFY_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"searchStringsArray\": [\"{{ $json.searchQuery }}\"],\n  \"maxCrawledPlacesPerSearch\": {{ $json.maxCrawledPlacesPerSearch || 10 }},\n  \"language\": \"pt\",\n  \"countryCode\": \"br\",\n  \"skipClosedPlaces\": true\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "node-apify-scraper",
+      "name": "Apify Google Maps Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\nconst segmentDefault = $('Definir Nicho & Parâmetros').item.json.segment || 'Geral';\nconst cityDefault = $('Definir Nicho & Parâmetros').item.json.city || 'Santos';\n\nconst validLeads = [];\n\nfor (const place of items) {\n  const name = place.title || place.name;\n  const phone = place.phoneUnformatted || place.phone || '';\n  const website = place.website || '';\n  const category = place.categoryName || segmentDefault;\n  const city = place.city || cityDefault;\n\n  // Prioriza estabelecimentos com contato para abordagem comercial\n  if (name && (phone || website)) {\n    validLeads.push({\n      json: {\n        empresa: name,\n        segmento: category,\n        cidade: city,\n        uf: 'SP',\n        telefone: phone,\n        website: website,\n        mapsUrl: place.url || '',\n        origem: 'Apify Google Maps (n8n)'\n      }\n    });\n  }\n}\n\nreturn validLeads;"
+      },
+      "id": "node-normalize-leads",
+      "name": "Normalizar Dados para Webhook CRM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PROSPECTOR_API_URL || 'https://api-prospector-delta.vercel.app' }}/api/webhooks/lead",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"empresa\": \"{{ $json.empresa }}\",\n  \"segmento\": \"{{ $json.segmento }}\",\n  \"cidade\": \"{{ $json.cidade }}\",\n  \"uf\": \"{{ $json.uf || 'SP' }}\",\n  \"telefone\": \"{{ $json.telefone }}\",\n  \"website\": \"{{ $json.website }}\",\n  \"origem\": \"{{ $json.origem }}\"\n}",
+        "options": {}
+      },
+      "id": "node-post-crm-webhook",
+      "name": "Enviar para Webhook CRM (com IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE || 'principal' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $env.HENRIQUE_WHATSAPP_NUMBER || '5513991383222' }}\",\n  \"text\": {{ JSON.stringify(\"🚀 *PROSPECÇÃO AUTOMÁTICA CONCLUÍDA!*\\n\\n🎯 *Nicho:* \" + $('Definir Nicho & Parâmetros').item.json.searchQuery + \"\\n📥 *Leads Qualificados Inseridos:* \" + $input.all().length + \" empresas\\n🤖 *Qualificação IA:* Scores calculados e roteiros prontos no CRM!\\n\\n👉 *Acesse o CRM para revisar:*\\n\" + ($env.PROSPECTOR_WEB_URL || 'https://prospector-crm-pessoal.vercel.app')) }}\n}",
+        "options": {}
+      },
+      "id": "node-notify-whatsapp",
+      "name": "Notificar Conclusão WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Disparo Semanal (Segunda 08:00)": {
+      "main": [
+        [
+          {
+            "node": "Definir Nicho & Parâmetros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir Nicho & Parâmetros": {
+      "main": [
+        [
+          {
+            "node": "Apify Google Maps Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Google Maps Scraper": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados para Webhook CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados para Webhook CRM": {
+      "main": [
+        [
+          {
+            "node": "Enviar para Webhook CRM (com IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar para Webhook CRM (com IA)": {
+      "main": [
+        [
+          {
+            "node": "Notificar Conclusão WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prospector-crm-n8n"
+  },
+  "tags": [
+    {
+      "name": "Prospector CRM"
+    },
+    {
+      "name": "Apify"
+    },
+    {
+      "name": "Google Maps"
+    }
+  ]
+}
