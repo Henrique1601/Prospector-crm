@@ -18,7 +18,7 @@ import {
   Zap,
   X
 } from "lucide-react";
-import { api } from "./api";
+import { api, apiBaseUrl } from "./api";
 import type { McpStatusResponse, McpTestResponse } from "./types";
 
 interface McpHubModalProps {
@@ -85,7 +85,7 @@ export function McpHubModal({ isOpen, onClose, onLeadSelect }: McpHubModalProps)
   };
 
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
-  const apiEndpointUrl = `${currentOrigin}/api/mcp`;
+  const apiEndpointUrl = apiBaseUrl ? `${apiBaseUrl}/api/mcp` : `${currentOrigin}/api/mcp`;
 
   const claudeDesktopConfig = JSON.stringify(
     {

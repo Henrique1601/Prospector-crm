@@ -1,7 +1,7 @@
 import type { ConversionAnalytics, DashboardData, DemoPrimaryGoal, DemoProjectType, DemoStatus, DemoVersion, Lead, ResolvedPlacePreview, Stage } from "./types";
 
 const productionApiUrl = "https://api-prospector-delta.vercel.app";
-const apiBaseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : productionApiUrl)).replace(/\/$/, "");
+export const apiBaseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : productionApiUrl)).replace(/\/$/, "");
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${url}`, { headers: { "Content-Type": "application/json" }, ...options });

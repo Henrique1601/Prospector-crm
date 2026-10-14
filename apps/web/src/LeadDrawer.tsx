@@ -242,7 +242,7 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
                 {lead.segment} · {lead.city}/{lead.state}
               </span>
               <div className="drawer-header-badges">
-                <span className="drawer-badge score">Score {lead.score}</span>
+                <span className="drawer-badge drawer-score-pill">Score {lead.score || 0}/100</span>
                 <span className={`drawer-badge priority priority-${lead.priority}`}>
                   {lead.priority === "urgent" ? "Urgente" : lead.priority === "high" ? "Alta" : "Média"}
                 </span>
@@ -347,8 +347,12 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
                     <span className="eyebrow">Inteligência Gemini</span>
                     <h3>Diagnóstico de Potencial</h3>
                   </div>
-                  <div className="score" style={{ "--score": `${lead.score * 3.6}deg` } as React.CSSProperties}>
-                    <span>{lead.score || "–"}</span>
+                  <div className="lead-score-executive-pill">
+                    <span className="executive-score-val">{lead.score || 0}</span>
+                    <span className="executive-score-denom">/100</span>
+                    <span className="executive-score-label">
+                      {(lead.score || 0) >= 70 ? "Alta Conversão 🔥" : (lead.score || 0) >= 40 ? "Médio Potencial" : "A Avaliar"}
+                    </span>
                   </div>
                 </div>
 

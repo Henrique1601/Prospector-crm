@@ -20,7 +20,7 @@ import {
   Terminal,
   Zap
 } from "lucide-react";
-import { api } from "../api";
+import { api, apiBaseUrl } from "../api";
 import type { Lead, McpStatusResponse, McpTestResponse } from "../types";
 
 interface IntegrationsViewProps {
@@ -120,8 +120,8 @@ export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsVi
   };
 
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
-  const apiEndpointUrl = `${currentOrigin}/api/mcp`;
-  const webhookEndpoint = `${currentOrigin}/api/webhooks/lead`;
+  const apiEndpointUrl = apiBaseUrl ? `${apiBaseUrl}/api/mcp` : `${currentOrigin}/api/mcp`;
+  const webhookEndpoint = apiBaseUrl ? `${apiBaseUrl}/api/webhooks/lead` : `${currentOrigin}/api/webhooks/lead`;
 
   const claudeDesktopConfig = JSON.stringify(
     {

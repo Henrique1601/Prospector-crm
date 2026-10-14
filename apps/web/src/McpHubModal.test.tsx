@@ -6,6 +6,7 @@ import { McpHubModal } from "./McpHubModal";
 import { api } from "./api";
 
 vi.mock("./api", () => ({
+  apiBaseUrl: "https://api-prospector-delta.vercel.app",
   api: {
     mcpStatus: vi.fn().mockResolvedValue({
       configured: true,
