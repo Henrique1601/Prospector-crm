@@ -56,9 +56,9 @@ flowchart LR
 
 | Arquivo | Nome | Gatilho | Ação Principal |
 | :--- | :--- | :--- | :--- |
-| [`workflow-1-followup-digest.json`](file:///c:/Users/conta/OneDrive/Documentos/ChatGPT/CRM/integrations/n8n/workflow-1-followup-digest.json) | **Resumo Matinal de Follow-ups** | Cron Seg-Sex 08:30 | Envia resumo formatado no seu WhatsApp com follow-ups do dia, leads que responderam e meta diária. |
-| [`workflow-2-whatsapp-replies.json`](file:///c:/Users/conta/OneDrive/Documentos/ChatGPT/CRM/integrations/n8n/workflow-2-whatsapp-replies.json) | **Lead Respondeu no WhatsApp** | Webhook Evolution API | Identifica o lead por telefone, move para `Respondeu`, registra a conversa no histórico e envia alerta push para você. |
-| [`workflow-3-apify-gmaps-prospector.json`](file:///c:/Users/conta/OneDrive/Documentos/ChatGPT/CRM/integrations/n8n/workflow-3-apify-gmaps-prospector.json) | **Scraper Google Maps (Apify)** | Cron Semanal / Manual | Raspa nichos da Baixada Santista e envia em lote para o Webhook do CRM, onde a Gemini AI analisa cada empresa. |
+| [`workflow-1-followup-digest.json`](file:///c:/Users/henri/Programacao/Projetos/Prospector-crm/integrations/n8n/workflow-1-followup-digest.json) | **Resumo Matinal de Follow-ups** | Cron Seg-Sex 08:30 | Envia resumo formatado no seu WhatsApp com follow-ups do dia, leads que responderam e meta diária. |
+| [`workflow-2-whatsapp-replies.json`](file:///c:/Users/henri/Programacao/Projetos/Prospector-crm/integrations/n8n/workflow-2-whatsapp-replies.json) | **Lead Respondeu no WhatsApp** | Webhook Evolution API | Identifica o lead por telefone, move para `Respondeu`, registra a conversa no histórico e envia alerta push para você. |
+| [`workflow-3-apify-gmaps-prospector.json`](file:///c:/Users/henri/Programacao/Projetos/Prospector-crm/integrations/n8n/workflow-3-apify-gmaps-prospector.json) | **Scraper Google Maps (Apify)** | Cron Semanal / Manual | Raspa nichos da Baixada Santista e envia em lote para o Webhook do CRM, onde a Gemini AI analisa cada empresa. |
 
 ---
 
