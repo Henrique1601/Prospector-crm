@@ -698,6 +698,7 @@ app.post("/api/leads/:id/demo", async (req, res) => {
 const demoProjectTypeSchema = z.enum(["landing_page", "institutional_site", "catalog", "ecommerce"]);
 const demoPrimaryGoalSchema = z.enum(["quotes", "orders", "reservations", "appointments"]);
 const demoStatusSchema = z.enum(["briefing", "generating", "review", "ready", "sent", "approved"]);
+const demoPlatformSchema = z.enum(["lovable", "v0", "codex", "antigravity_mcp", "anima", "webild", "emergent"]);
 
 app.get("/api/leads/:id/demos", async (req, res) => {
   const store = await readStore();
@@ -770,6 +771,7 @@ app.patch("/api/leads/:id/demos/:demoId", async (req, res) => {
   const schema = z.object({
     status: demoStatusSchema.optional(),
     previewUrl: z.string().url().or(z.literal("")).optional(),
+    platform: demoPlatformSchema.optional(),
     feedback: z.string().max(5000).optional(),
     nextStep: z.string().max(1000).optional(),
     followUpAt: z.string().datetime().optional()
@@ -784,6 +786,7 @@ app.patch("/api/leads/:id/demos/:demoId", async (req, res) => {
   Object.assign(demo, input, { updatedAt: new Date().toISOString() });
   lead.demoStatus = demo.status;
   lead.demoUrl = demo.previewUrl || lead.demoUrl;
+  if (demo.platform) lead.demoPlatform = demo.platform;
   lead.nextAction = demo.nextStep || lead.nextAction;
   lead.nextFollowUp = demo.followUpAt || lead.nextFollowUp;
   lead.updatedAt = new Date().toISOString();

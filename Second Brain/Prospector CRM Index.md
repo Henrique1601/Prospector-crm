@@ -34,7 +34,8 @@ tags:
 
 - [[Sales Playbook]] — scripts oficiais do Henrique e 3 variações de abordagem
 - [[Playbook - Central de Abordagens e Modelos de Conversao]] — as 3 perguntas de impacto, canais de contato e webhooks
-- [[Playbook - Demonstracoes e Mockups com Lovable]] — criação de protótipos de sites ao vivo
+- [[Playbook - Demonstracoes e Mockups com Lovable]] — criação de protótipos de sites ao vivo com Lovable
+- [[Playbook - Geradores de Demonstracao IA (Lovable, Codex, Anima, Webild, Emergent)]] — criação em Lovable, v0, Codex, Antigravity MCP, Anima, Webild e Emergent
 - [[Playbook - Auditoria de Sites e Quebra de Objeções]] — auditorias técnicas de velocidade e SEO local
 - [[Playbook - Propostas Comerciais e Fechamento]] — propostas em PDF e contratos
 - [[Playbook - Rotina Diaria e Find Skills]] — rotina de 10 contatos por dia e busca de novas skills

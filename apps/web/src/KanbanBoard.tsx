@@ -93,7 +93,7 @@ export function KanbanBoard({ leads, onSelectLead, onUpdateStage }: KanbanBoardP
                         )}
                         {lead.demoUrl && (
                           <span className="kanban-pill demo">
-                            <span>Demo Lovable</span>
+                            <span>Demo IA</span>
                           </span>
                         )}
                         {isUrgent && (

@@ -58,11 +58,11 @@ const TEMPLATES: Template[] = [
   {
     id: "user-q2-demo-lovable",
     category: "demo_lovable",
-    title: "2. Demonstração Pronta de Alto Impacto",
+    title: "2. Demonstração Pronta de Alto Impacto (IA)",
     badge: "Gera Desejo 🚀",
     highlight: true,
     channel: "whatsapp",
-    context: "Envio de link interativo já personalizado com a identidade da empresa para o decisor testar.",
+    context: "Envio de link interativo (gerado via Lovable, Codex, Anima, Webild, Emergent, v0 ou Antigravity) para o decisor testar ao vivo no celular.",
     buildText: (company, segment, city, portfolio, phone, demoUrl) =>
       `Olá! Tudo bem?\n\nEstava pesquisando referências de ${segment.toLowerCase()} aqui em ${city} e achei o trabalho da ${company} muito diferenciado!\n\nPor curiosidade profissional, rascunhei uma versão moderna de site pensada para celular, focada em transformar visitantes do Google em conversas diretas no seu WhatsApp.\n\nFicou bem leve e profissional. Dê uma olhada na demonstração: ${demoUrl || portfolio}\n\nSe gostar da proposta, posso te mostrar como colocar no ar essa semana!`
   },

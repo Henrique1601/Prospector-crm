@@ -4,6 +4,7 @@ export type DemoInterest = "not_offered" | "offered" | "accepted" | "declined";
 export type DemoStatus = "briefing" | "generating" | "review" | "ready" | "sent" | "approved";
 export type DemoProjectType = "landing_page" | "institutional_site" | "catalog" | "ecommerce";
 export type DemoPrimaryGoal = "quotes" | "orders" | "reservations" | "appointments";
+export type DemoPlatform = "lovable" | "v0" | "codex" | "antigravity_mcp" | "anima" | "webild" | "emergent";
 
 export interface DemoVersion {
   id: string;
@@ -11,6 +12,7 @@ export interface DemoVersion {
   status: DemoStatus;
   projectType: DemoProjectType;
   primaryGoal: DemoPrimaryGoal;
+  platform?: DemoPlatform;
   informationConfirmed: boolean;
   strategicSummary: string;
   prompt: string;
@@ -72,6 +74,7 @@ export interface Lead {
   demoInformationConfirmed?: boolean;
   demoStrategicSummary?: string;
   demoPrompt?: string;
+  demoPlatform?: DemoPlatform;
   demos?: DemoVersion[];
   createdAt: string;
   updatedAt: string;

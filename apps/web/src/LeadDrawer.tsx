@@ -28,12 +28,15 @@ import {
   Share2,
   Sparkles,
   Target,
+  Terminal,
+  Wand2,
   X
 } from "lucide-react";
 import { api } from "./api";
 import { ObjectionsAssistant } from "./ObjectionsAssistant";
 import { triggerConfetti } from "./Confetti";
 import type { DemoPrimaryGoal, DemoProjectType, DemoStatus, Lead, Stage } from "./types";
+import { DEMO_PLATFORMS, PLATFORM_LIST, type DemoPlatform } from "./demoPlatforms";
 
 const stageLabels: Record<Stage, string> = {
   new: "Novo",
@@ -84,6 +87,8 @@ export function LeadDrawer({
   const [isListening, setIsListening] = useState(false);
   const [selectedApproach, setSelectedApproach] = useState<ApproachType>("curiosity");
   const [demoUrlInput, setDemoUrlInput] = useState(lead.demoUrl || "");
+  const [selectedPlatform, setSelectedPlatform] = useState<DemoPlatform>(lead.demoPlatform || "lovable");
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const [demoForm, setDemoForm] = useState<{
     projectType: DemoProjectType;
@@ -118,13 +123,14 @@ export function LeadDrawer({
       address: lead.address || ""
     });
     setDemoUrlInput(lead.demos?.[0]?.previewUrl || lead.demoUrl || "");
+    setSelectedPlatform(lead.demoPlatform || (lead.demos?.[0]?.platform as DemoPlatform) || "lovable");
     setDemoForm({
       projectType: lead.demoProjectType || "landing_page",
       primaryGoal: lead.demoPrimaryGoal || "quotes",
       informationConfirmed: Boolean(lead.demoInformationConfirmed)
     });
     setIsEditing(false);
-  }, [lead.id, lead.updatedAt, lead.demoUrl, lead.demoProjectType, lead.demoPrimaryGoal, lead.demoInformationConfirmed, lead.demos]);
+  }, [lead.id, lead.updatedAt, lead.demoUrl, lead.demoPlatform, lead.demoProjectType, lead.demoPrimaryGoal, lead.demoInformationConfirmed, lead.demos]);
 
   const act = async (name: string, fn: () => Promise<Lead>) => {
     setBusy(name);
@@ -213,11 +219,22 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
     setIsEditing(false);
   };
 
+  const activePlatform = DEMO_PLATFORMS[selectedPlatform] || DEMO_PLATFORMS.lovable;
+  const customizedPrompt = latestDemo ? activePlatform.formatPrompt(latestDemo.prompt, lead) : "";
+
+  const handleCopyPrompt = async () => {
+    if (customizedPrompt) {
+      await navigator.clipboard.writeText(customizedPrompt);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    }
+  };
+
   const handleSaveDemoUrl = async () => {
     await act("save-demo-url", () =>
       latestDemo
-        ? api.updateDemo(lead.id, latestDemo.id, { previewUrl: demoUrlInput })
-        : api.update(lead.id, { demoUrl: demoUrlInput })
+        ? api.updateDemo(lead.id, latestDemo.id, { previewUrl: demoUrlInput, platform: selectedPlatform })
+        : api.update(lead.id, { demoUrl: demoUrlInput, demoPlatform: selectedPlatform })
     );
   };
 
@@ -893,21 +910,85 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
                       <p>{latestDemo.strategicSummary}</p>
                     </div>
 
-                    <div className="demo-copy-block">
-                      <div className="section-title">
-                        <h4>Prompt para IA Construtora (Lovable / Bolt / v0)</h4>
-                        <button
-                          className="copy-action-btn"
-                          onClick={() => navigator.clipboard.writeText(latestDemo.prompt)}
-                        >
-                          <Copy size={13} /> Copiar prompt
-                        </button>
+                    {/* SELETOR DE PLATAFORMAS DE IA & FERRAMENTAS */}
+                    <div className="demo-platforms-container mt-3">
+                      <div className="demo-platforms-header">
+                        <span className="eyebrow">Plataformas de Criação & IA</span>
+                        <h4>Onde você deseja gerar a demonstração?</h4>
                       </div>
-                      <pre className="brief">{latestDemo.prompt}</pre>
+
+                      <div className="demo-platforms-grid">
+                        {PLATFORM_LIST.map((platId) => {
+                          const p = DEMO_PLATFORMS[platId];
+                          const isSelected = selectedPlatform === platId;
+                          return (
+                            <button
+                              key={platId}
+                              type="button"
+                              className={`demo-platform-pill ${isSelected ? "active" : ""}`}
+                              onClick={() => setSelectedPlatform(platId)}
+                            >
+                              <span className="platform-icon">{p.iconName}</span>
+                              <span className="platform-name">{p.name}</span>
+                              <span className="platform-badge">{p.badge}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* CARD DETALHADO DA PLATAFORMA ATIVA */}
+                      <div className="demo-active-platform-card">
+                        <div className="active-platform-top">
+                          <div className="active-platform-info">
+                            <div className="active-platform-title-row">
+                              <span className="platform-avatar">{activePlatform.iconName}</span>
+                              <strong>{activePlatform.name}</strong>
+                              <span className="platform-badge-tag">{activePlatform.badge}</span>
+                              {activePlatform.id === "antigravity_mcp" && (
+                                <span className="mcp-live-badge">MCP Ativo ⚡</span>
+                              )}
+                            </div>
+                            <p className="platform-tagline">{activePlatform.tagline}</p>
+                          </div>
+
+                          {activePlatform.url && (
+                            <a
+                              href={activePlatform.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-open-platform"
+                            >
+                              <span>Abrir {activePlatform.name}</span>
+                              <ExternalLink size={13} />
+                            </a>
+                          )}
+                        </div>
+
+                        <div className="platform-instructions-box">
+                          <Sparkles size={13} />
+                          <span>{activePlatform.instructions}</span>
+                        </div>
+
+                        {/* BLOCO DE PROMPT OTIMIZADO */}
+                        <div className="demo-copy-block mt-2">
+                          <div className="section-title">
+                            <h4>Prompt Otimizado para {activePlatform.name}</h4>
+                            <button
+                              type="button"
+                              className={`copy-action-btn ${copiedPrompt ? "copied" : ""}`}
+                              onClick={handleCopyPrompt}
+                            >
+                              {copiedPrompt ? <Check size={13} /> : <Copy size={13} />}
+                              <span>{copiedPrompt ? "Prompt Copiado! ✓" : "Copiar prompt"}</span>
+                            </button>
+                          </div>
+                          <pre className="brief">{customizedPrompt}</pre>
+                        </div>
+                      </div>
                     </div>
 
                     {lead.demos && lead.demos.length > 1 && (
-                      <div className="demo-version-history">
+                      <div className="demo-version-history mt-2">
                         {lead.demos.slice(1).map((demo) => (
                           <span key={demo.id}>V{demo.version} · {demo.status}</span>
                         ))}
@@ -921,11 +1002,25 @@ Próxima ação: ${lead.nextAction || "Retornar contato"}`);
                 )}
 
                 <div className="drawer-demo-url-box mt-3">
-                  <span className="demo-url-label">Link da demonstração pronta no Lovable/Netlify:</span>
+                  <div className="demo-url-header-row">
+                    <span className="demo-url-label">
+                      Link da demonstração pronta no {activePlatform.name} (ou Netlify):
+                    </span>
+                    {demoUrlInput && (demoUrlInput.startsWith("http://") || demoUrlInput.startsWith("https://")) && (
+                      <a
+                        href={demoUrlInput}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="demo-test-live-link"
+                      >
+                        <ExternalLink size={12} /> Testar Ao Vivo
+                      </a>
+                    )}
+                  </div>
                   <div className="input-action-row">
                     <input
                       type="url"
-                      placeholder="https://preview--cliente.lovable.app"
+                      placeholder={activePlatform.placeholderUrl}
                       value={demoUrlInput}
                       onChange={(e) => setDemoUrlInput(e.target.value)}
                     />

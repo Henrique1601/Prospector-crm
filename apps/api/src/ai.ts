@@ -225,7 +225,7 @@ DIREÇÃO VISUAL
 Crie uma identidade profissional coerente com o segmento. Use conteúdo específico para a empresa, linguagem clara e alta legibilidade.
 
 REGRAS
-Não invente avaliações, métricas, preços, serviços, endereços ou resultados. Sinalize qualquer informação ausente como pendente de confirmação. A saída deve estar pronta para ser usada em Lovable, Bolt, v0, Replit ou outra IA construtora de sites.`,
+Não invente avaliações, métricas, preços, serviços, endereços ou resultados. Sinalize qualquer informação ausente como pendente de confirmação. A saída deve estar pronta para ser usada em Lovable, v0, Codex, Anima App (dev.animaapp.com), Webild (webild.io), Emergent (app.emergent.sh) ou no Antigravity via MCP.`,
     offerMessage: `Olá! Com base no que analisei da ${lead.name}, posso preparar uma demonstração inicial sem compromisso para você visualizar como o novo site poderia ficar. Já atendo a ${HENRIQUE_PROFILE.localClient}, e posso montar uma proposta focada em ${goalLabel} e fortalecer sua presença no Google. Depois envio o link para você avaliar.`,
     nextStep: "Revisar o briefing e o prompt antes de gerar a demonstração"
   };

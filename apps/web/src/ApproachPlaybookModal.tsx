@@ -99,10 +99,10 @@ Meu nome é Henrique, sou desenvolvedor web especializado na região. Preparei u
   {
     id: "demo-lovable-ready",
     category: "demo_lovable",
-    title: "Protótipo Interativo Criado",
+    title: "Protótipo Interativo Criado (IA)",
     badge: "Impacto Visual 💡",
     channel: "whatsapp",
-    context: "Quando você já gerou um protótipo rápido no Lovable e quer surpreender o cliente.",
+    context: "Quando você já gerou um protótipo rápido (Lovable, Codex, Anima, Webild, Emergent, v0 ou Antigravity) e quer surpreender o cliente.",
     buildText: (company, segment, city, portfolio, _phone, demoUrl) =>
       `Olá! Tudo bem? Meu nome é Henrique, sou desenvolvedor web aqui da região.
 
@@ -492,7 +492,7 @@ export function ApproachPlaybookModal({
             }}
           >
             <Sparkles size={15} />
-            <span>Protótipo & Lovable</span>
+            <span>Protótipo & IA</span>
           </button>
 
           <button
