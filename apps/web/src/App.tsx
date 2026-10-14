@@ -54,16 +54,12 @@ import { api } from "./api";
 import { BatchImportModal } from "./BatchImportModal";
 import { ProposalModal } from "./ProposalModal";
 import { ApproachPlaybookModal } from "./ApproachPlaybookModal";
-import { DailyProspectingModal } from "./DailyProspectingModal";
-import { WebhookDocModal } from "./WebhookDocModal";
-import { AnalyticsModal } from "./AnalyticsModal";
 import { CommandPalette } from "./CommandPalette";
 import { RoiCalculatorModal } from "./RoiCalculatorModal";
 import { LeadAuditModal } from "./LeadAuditModal";
 import { ColdAudioScriptModal } from "./ColdAudioScriptModal";
 import { BeforeAfterCardModal } from "./BeforeAfterCardModal";
 import { PublicProposalView } from "./PublicProposalView";
-import { McpHubModal } from "./McpHubModal";
 import { LeadDrawer } from "./LeadDrawer";
 import { PipelineView } from "./views/PipelineView";
 import { DailyRoutineView } from "./views/DailyRoutineView";
@@ -267,10 +263,6 @@ export function App() {
   const [proposalModalLead, setProposalModalLead] = useState<Lead | null>(null);
   const [playbookModalLead, setPlaybookModalLead] = useState<Lead | null>(null);
   const [approachPlaybookOpen, setApproachPlaybookOpen] = useState(false);
-  const [prospectingOpen, setProspectingOpen] = useState(false);
-  const [webhookDocOpen, setWebhookDocOpen] = useState(false);
-  const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
-  const [mcpHubOpen, setMcpHubOpen] = useState(false);
 
   const [roiModalLead, setRoiModalLead] = useState<Lead | null>(null);
   const [auditModalLead, setAuditModalLead] = useState<Lead | null>(null);
@@ -665,7 +657,12 @@ export function App() {
           <DailyRoutineView
             leads={leads}
             onSelectLead={setSelected}
+            onOpenBatchImport={() => setBatchOpen(true)}
             onImportBatch={() => setBatchOpen(true)}
+            onLeadsImported={(newLeads) => {
+              setLeads((items) => [...newLeads, ...items]);
+              void load();
+            }}
           />
         )}
 
@@ -678,8 +675,12 @@ export function App() {
 
         {activeView === "playbook" && (
           <PlaybookView
+            leads={leads}
             selectedLead={selected}
             onSelectLead={setSelected}
+            onLoggedInteraction={(leadId, note) => {
+              api.interaction(leadId, note).then(changed).catch(() => {});
+            }}
           />
         )}
 
@@ -861,44 +862,6 @@ export function App() {
         />
       )}
 
-      {prospectingOpen && (
-        <DailyProspectingModal
-          onClose={() => setProspectingOpen(false)}
-          onOpenBatchImport={() => setBatchOpen(true)}
-          onLeadsImported={(newLeads) => {
-            setLeads((items) => [...newLeads, ...items]);
-            void load();
-          }}
-        />
-      )}
-
-      {webhookDocOpen && (
-        <WebhookDocModal
-          onClose={() => setWebhookDocOpen(false)}
-          onLeadCreated={(newLead) => {
-            setLeads((items) => [newLead, ...items]);
-            setSelected(newLead);
-            void load();
-          }}
-        />
-      )}
-
-      {analyticsModalOpen && (
-        <AnalyticsModal
-          onClose={() => setAnalyticsModalOpen(false)}
-        />
-      )}
-
-      {mcpHubOpen && (
-        <McpHubModal
-          isOpen={mcpHubOpen}
-          onClose={() => setMcpHubOpen(false)}
-          onLeadSelect={(leadId) => {
-            const found = leads.find((l) => l.id === leadId);
-            if (found) setSelected(found);
-          }}
-        />
-      )}
 
       {addOpen && (
         <AddLead

@@ -42,11 +42,9 @@ export function AnalyticsView({ leads, dashboard }: AnalyticsViewProps = {}) {
 
   return (
     <div className="view-container analytics-page-view">
-      <div className="view-header">
+      <div className="view-header analytics-view-header">
         <div>
-          <span className="eyebrow">Inteligência Comercial & Fechamento</span>
-          <h1 className="view-title">Analytics de Conversão & Win Rate</h1>
-          <p className="view-subtitle">Métricas em tempo real da Baixada Santista: saiba exatamente onde o seu esforço vira contrato.</p>
+          <span className="eyebrow">Métricas em tempo real da Baixada Santista</span>
         </div>
         <button
           type="button"
@@ -56,7 +54,7 @@ export function AnalyticsView({ leads, dashboard }: AnalyticsViewProps = {}) {
           title="Recarregar dados"
         >
           <RefreshCw size={14} className={loading ? "spin" : ""} />
-          <span>Atualizar</span>
+          <span>Atualizar Métricas</span>
         </button>
       </div>
 

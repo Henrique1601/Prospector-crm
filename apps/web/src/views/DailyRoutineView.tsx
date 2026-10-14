@@ -202,11 +202,9 @@ export function DailyRoutineView({ onOpenBatchImport, onLeadsImported }: DailyRo
 
   return (
     <div className="view-container daily-routine-page-view">
-      <div className="view-header">
+      <div className="view-header routine-view-header">
         <div>
-          <span className="eyebrow">Motor de Prospecção Diária</span>
-          <h1 className="view-title">Radar Comercial da Baixada Santista</h1>
-          <p className="view-subtitle">Varredura inteligente de estabelecimentos locais no Google Maps com validação de WhatsApp e oportunidade.</p>
+          <span className="eyebrow">Radar Ativo de Estabelecimentos</span>
         </div>
         <div className="view-header-actions">
           <button

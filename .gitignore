@@ -24,3 +24,8 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Obsidian - Layout local e caches transitórios
+**/.obsidian/workspace*.json
+**/.obsidian/cache/
+
+

@@ -154,11 +154,9 @@ export function PlaybookView({
 
   return (
     <div className="view-container playbook-page-view">
-      <div className="view-header">
-        <div>
-          <span className="eyebrow">Arsenal Comercial de Henrique Bezerra</span>
-          <h1 className="view-title">Playbook de Abordagens & Objeções</h1>
-          <p className="view-subtitle">Roteiros validados, perguntas de alto impacto e contornos de objeções para WhatsApp e ligações.</p>
+      <div className="view-header playbook-view-header">
+        <div className="playbook-header-info">
+          <span className="eyebrow">Arsenal Comercial de Henrique</span>
         </div>
 
         {leads.length > 0 && (

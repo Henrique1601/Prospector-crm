@@ -183,13 +183,9 @@ export function IntegrationsView({ onLeadSelect, onLeadCreated }: IntegrationsVi
   return (
     <div className="view-container">
       {/* Top Header */}
-      <div className="view-header">
+      <div className="view-header integrations-view-header">
         <div>
-          <span className="eyebrow">Arquitetura Aberta & Agentes IA</span>
-          <h2>Central de Conexões & Integrações</h2>
-          <p>
-            Conecte o Prospector CRM a clientes de IA externos (Claude Desktop, Cursor, Antigravity) via Model Context Protocol (MCP) e receba leads automáticos via Webhook HTTP.
-          </p>
+          <span className="eyebrow">Arquitetura Aberta & Agentes IA (MCP Server + Webhooks)</span>
         </div>
         <div className="view-header-actions">
           <button
