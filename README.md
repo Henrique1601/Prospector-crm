@@ -39,6 +39,12 @@ flowchart TD
         LocalStore[(apps/api/data/store.json)]
     end
 
+    subgraph Integrations["⚡ Automações & Mensageria"]
+        n8n[n8n Automation Engine]
+        EvolutionAPI[Evolution API WhatsApp]
+        Apify[Apify Google Maps]
+    end
+
     subgraph Brain["🧠 Segundo Cérebro"]
         Obsidian[Vault Obsidian / Second Brain]
     end
@@ -49,6 +55,10 @@ flowchart TD
     AudioModal -->|Roteiro Sob Medida| API
     McpModal -->|Health & Testes| McpServer
     DemoFlow -->|Geração de Briefing & Prompt| AI
+
+    n8n -->|Webhooks & Status| API
+    n8n -->|Mensagens & Alertas| EvolutionAPI
+    Apify -->|Leads em Lote| n8n
 
     API -->|DATABASE_URL ativa| Neon
     API -->|Fallback Local / Dev| LocalStore
@@ -91,6 +101,13 @@ flowchart TD
 ### 6. 🧠 Segundo Cérebro no Obsidian
 - Vault completo na pasta `Second Brain/` com notas de estratégia, playbooks, scripts e logs.
 - Comando `npm run brain:sync` que consolida os números atuais do funil em `Second Brain/CRM Snapshot.md`.
+
+### 7. ⚡ Automações n8n & WhatsApp (Evolution API + Apify)
+- **Workflows Prontos para Importação:** Templates JSON em `integrations/n8n/` para orquestração comercial assíncrona.
+- **Resumo Matinal:** Disparo diário às 08:30 no WhatsApp de Henrique com os follow-ups prioritários e leads quentes.
+- **Webhook de Respostas:** Identificação automática de clientes via Evolution API, transição para o estágio `Respondeu` (`replied`), registro no histórico e push notification instantânea.
+- **Scraper Recorrente no Maps:** Execução semanal do Apify (Google Places) com ingestão no webhook `/api/webhooks/lead` e qualificação inteligente imediata via Gemini AI.
+- **Central de Workflows no Painel:** Aba dedicada em `Integrações` no frontend com visualização rápida, cópia de JSON e download direto de arquivos.
 
 ---
 
@@ -209,6 +226,8 @@ Compatível com Claude Desktop, Cursor e outros clientes MCP modernos:
 │   │   └── vercel.json          # Configuração de rotas de função Vercel
 │   └── web/                     # Frontend SPA React + Vite + Double-Bezel Design
 │       └── src/                 # Componentes, modais de ROI, Scraper, MCP e Áudio
+├── integrations/
+│   └── n8n/                     # Templates de workflows JSON e documentação n8n
 ├── scripts/                     # Utilitários de CLI (scrape-maps.mjs, etc.)
 ├── Second Brain/                # Vault Obsidian (Playbooks, Roadmap, Snapshot)
 ├── .gitignore                   # Regras de proteção de segredos e builds
