@@ -716,7 +716,11 @@ export function App() {
         <button
           type="button"
           className={activeView === "pipeline" ? "active" : ""}
-          onClick={() => setActiveView("pipeline")}
+          onClick={() => {
+            setActiveView("pipeline");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          title="Visão geral do pipeline"
         >
           <LayoutDashboard />
           <span>Visão geral</span>
@@ -724,7 +728,12 @@ export function App() {
         <button
           type="button"
           className={activeView === "pipeline" ? "active" : ""}
-          onClick={() => setActiveView("pipeline")}
+          onClick={() => {
+            setActiveView("pipeline");
+            const el = document.getElementById("pipeline");
+            el?.scrollIntoView({ behavior: "smooth" });
+          }}
+          title="Lista de Leads"
         >
           <Users />
           <span>Leads</span>
@@ -732,7 +741,11 @@ export function App() {
         <button
           type="button"
           className={activeView === "pipeline" ? "active" : ""}
-          onClick={() => setActiveView("pipeline")}
+          onClick={() => {
+            setActiveView("pipeline");
+            setFollowupDropdownOpen((prev) => !prev);
+          }}
+          title="Follow-ups agendados"
         >
           <CalendarClock />
           <span>Follow-ups</span>
@@ -742,6 +755,7 @@ export function App() {
           type="button"
           className={activeView === "routine" ? "active" : ""}
           onClick={() => setActiveView("routine")}
+          title="Rotina Diária de Prospecção"
         >
           <Compass />
           <span>Rotina</span>
@@ -750,6 +764,7 @@ export function App() {
           type="button"
           className={activeView === "playbook" ? "active" : ""}
           onClick={() => setActiveView("playbook")}
+          title="Playbook de Abordagens"
         >
           <BookOpen />
           <span>Playbook</span>
@@ -758,6 +773,7 @@ export function App() {
           type="button"
           className={activeView === "analytics" ? "active" : ""}
           onClick={() => setActiveView("analytics")}
+          title="Analytics de Conversão"
         >
           <BarChart3 />
           <span>Analytics</span>
@@ -766,6 +782,7 @@ export function App() {
           type="button"
           className={activeView === "integrations" ? "active" : ""}
           onClick={() => setActiveView("integrations")}
+          title="Conexões MCP e Webhooks"
         >
           <Plug />
           <span>MCP</span>
